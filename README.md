@@ -1,4 +1,4 @@
-# Phoenix fixtools
+# Phoenix Fake Tool
 
 ## Quick start
 

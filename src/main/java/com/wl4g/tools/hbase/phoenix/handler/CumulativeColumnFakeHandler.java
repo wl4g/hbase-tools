@@ -130,10 +130,10 @@ public class CumulativeColumnFakeHandler implements InitializingBean, Applicatio
                                         config.getGenerator().getValueRandomMaxPercent(), offsetAmount);
                                 double fakeValue = parseDouble((String) value) + fakeAmount;
                                 newRecord.put(columName, Maths.round(fakeValue, 4));
+                            } else if (!config.getCumulative().getColumnNames().contains(columName)) {
+                                newRecord.put(columName, value);
                             } else {
-                                // TODO
-                                log.warn("TODO 列是累计值，不能使用前一天的值作为模拟值(必须知道增量才有意义)");
-                                // newRecord.put(columName, value);
+                                log.warn("TODO 列 '{}' 属于累计值，无法直接使用历史值作为 Fake 值, 必须知道增量才有意义, 或将此列从累计列移除.", columName);
                             }
                         }
                         totalOfAll.incrementAndGet();

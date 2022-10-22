@@ -46,7 +46,7 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * {@link CumulativeColumnRepairHandler}
+ * {@link CumulativeColumnFakeHandler}
  * 
  * @author James Wong
  * @version 2022-10-22
@@ -54,7 +54,7 @@ import lombok.extern.slf4j.Slf4j;
  * @see https://www.baeldung.com/apache-commons-csv
  */
 @Slf4j
-public class CumulativeColumnRepairHandler implements InitializingBean, ApplicationRunner {
+public class CumulativeColumnFakeHandler implements InitializingBean, ApplicationRunner {
 
     private @Autowired PhoenixFakeProperties config;
     private @Autowired JdbcTemplate jdbcTemplate;
@@ -186,8 +186,8 @@ public class CumulativeColumnRepairHandler implements InitializingBean, Applicat
      * for example:
      * 
      * <pre>
-     * select (max(to_number("activePower"))-min(to_number("activePower"))) activePower,(max(to_number("reactivePower"))-min(to_number("reactivePower"))) reactivePower
-     * from "safeclound"."tb_ammeter" where "ROW">='11111277,ELE_P,134,01,2022102121' and "ROW"<='11111277,ELE_P,134,01,202210212221' limit 10;
+     * select (max(to_number("activePower"))-min(to_number("activePower")))/7 activePower,(max(to_number("reactivePower"))-min(to_number("reactivePower")))/7 reactivePower
+     * from "safeclound"."tb_ammeter" where "ROW">='11111277,ELE_P,134,01,202210132114' and "ROW"<='11111277,ELE_P,134,01,202210202114' limit 10;
      * </pre>
      * 
      * @throws ParseException
@@ -197,15 +197,18 @@ public class CumulativeColumnRepairHandler implements InitializingBean, Applicat
         final String rowKey = (String) record.get(config.getRowKey().getName());
         final Map<String, String> rowKeyParts = config.getRowKey().from(rowKey);
         // Gets sampling data record date.
-        final Date sampleStartDate = getOffsetRowKeyDate(rowKeyDatePattern, rowKeyParts, -1);
+        final Date sampleStartDate = getOffsetRowKeyDate(rowKeyDatePattern, rowKeyParts, config.getSample().getLastDateAmount());
         final String sampleStartRowKey = generateRowKey(rowKeyDatePattern, rowKeyParts, rowKey, sampleStartDate);
 
-        StringBuilder columns = new StringBuilder("select ");
+        StringBuilder columns = new StringBuilder();
         for (String columnName : safeList(config.getCumulative().getColumnNames())) {
             columns.append("(max(to_number(\"");
             columns.append(columnName);
             columns.append("\"))-min(to_number(\"");
-            columns.append("\"))) ");
+            columns.append(columnName);
+            columns.append("\")))/");
+            columns.append(config.getSample().getLastDateAmount());
+            columns.append("as ");
             columns.append(columnName);
             columns.append(",");
         }

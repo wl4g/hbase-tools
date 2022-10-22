@@ -37,6 +37,7 @@ java -jar phoenix-fake-1.0.0-bin.jar \
 --fake.rowKey.template="{text:addrIP:},ELE_P,{text:templateMark:},{text:addrIPOrder:%02d},{date:yyyyMMddHHmmssSSS}" \
 --fake.sample.startDate=202210202114 \
 --fake.sample.endDate=202210212114 \
+--fake.sample.lastDateAmount=-7 \
 --fake.generator.rowKeyDatePattern=dd \
 --fake.generator.rowKeyDateAmcount=1 \
 --fake.generator.valueRandomMinPercent=0.8976 \

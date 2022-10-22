@@ -79,6 +79,9 @@ public class PhoenixFakeProperties implements InitializingBean {
         rowKey.ensureInit();
     }
 
+    /**
+     * 从历史数据采样配置
+     */
     @Getter
     @Setter
     @ToString
@@ -86,6 +89,12 @@ public class PhoenixFakeProperties implements InitializingBean {
     public static class SampleConfig {
         private String startDate = formatDate(addDays(new Date(), -2), "yyyyMMddHHmm");
         private String endDate = formatDate(addDays(new Date(), -1), "yyyyMMddHHmm");
+
+        /**
+         * 时间量, 如: 基于过去一段时长(7d)的平均值, 使用那种"时间刻度"参考:
+         * {@link GeneratorConfig#rowKeyDatePattern}
+         */
+        private int lastDateAmount = -7;
     }
 
     @Getter
@@ -93,6 +102,11 @@ public class PhoenixFakeProperties implements InitializingBean {
     @ToString
     @NoArgsConstructor
     public static class GeneratorConfig {
+        /**
+         * 时间刻度: </br>
+         * 1. 用于采样时获取过去一段"时间量"的历史数据; </br>
+         * 2. 用于生成 fake 数据 rowKey 时使用(样本时间+此时间刻度的量)
+         */
         private String rowKeyDatePattern = "dd";
         private int rowKeyDateAmount = 1;
         private double valueRandomMinPercent = 0.8976;

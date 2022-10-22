@@ -52,9 +52,10 @@ fake:
   rowKey:
     name: ROW
     template: "{text:addrIP:},ELE_P,{text:templateMark:},{text:addrIPOrder:%02d},{date:yyyyMMddHHmmssSSS}"
-  #sample:
+  sample:
     #startDate: formatDate(addDays(new Date(), -2), "yyyyMMddHHmm")
     #endDate: formatDate(addDays(new Date(), -1), "yyyyMMddHHmm")
+    lastDateAmount: -7
   generator:
     rowKeyDatePattern: dd
     rowKeyDateAmcount: 1

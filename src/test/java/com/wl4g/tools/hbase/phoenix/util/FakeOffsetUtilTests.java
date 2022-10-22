@@ -13,21 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.wl4g;
+package com.wl4g.tools.hbase.phoenix.util;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import static org.apache.commons.lang3.StringUtils.isNumeric;
+
+import org.junit.jupiter.api.Test;
 
 /**
- * {@link PhoenixRepair}
+ * {@link FakeOffsetUtilTests}
  * 
  * @author James Wong
  * @version 2022-10-22
- * @since v1.0.0
+ * @since v3.0.0
  */
-@SpringBootApplication
-public class PhoenixRepair {
-    public static void main(String[] args) {
-        SpringApplication.run(PhoenixRepair.class, args);
+public class FakeOffsetUtilTests {
+
+    @Test
+    public void testRandomValue() {
+        System.out.println(isNumeric("2695.7"));
+        System.out.println(Double.parseDouble("2695.7"));
+
+        System.out.println(FakeOffsetUtil.random(0.8976, 1.1024, 2695.7));
+        System.out.println(FakeOffsetUtil.random(0.8976, 1.1024, 6061.6));
     }
+
 }

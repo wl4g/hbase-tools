@@ -66,12 +66,12 @@ public class RowKeySpec {
     /**
      * e.g: 11111111,ELE_P,111,08,20170729165254063
      */
-    private @Default String format = DEFAULT_FORMAT;
+    private @Default String template = DEFAULT_FORMAT;
     private @Default String name = "ROW";
 
-    private transient Map<String, PartVariable> variables;
-    private transient List<String> delimiters;
-    private transient String rowKeyWithUnresolveDate;
+    private volatile transient Map<String, PartVariable> variables;
+    private volatile transient List<String> delimiters;
+    private volatile transient String rowKeyWithUnresolveDate;
 
     public String to(@NotNull Map<String, String> parts, @NotBlank String rowDate) {
         notNullOf(parts, "rowKeyParts");
@@ -82,7 +82,7 @@ public class RowKeySpec {
         if (isBlank(rowKeyWithUnresolveDate)) {
             synchronized (this) {
                 if (isBlank(rowKeyWithUnresolveDate)) {
-                    this.rowKeyWithUnresolveDate = format;
+                    this.rowKeyWithUnresolveDate = template;
 
                     // Resolve rowKey without date.
                     for (Entry<String, String> e : safeMap(parts).entrySet()) {
@@ -152,7 +152,7 @@ public class RowKeySpec {
     }
 
     public RowKeySpec ensureInit() {
-        if (nonNull(variables)) {
+        if (nonNull(variables) && nonNull(delimiters)) {
             return this;
         }
 
@@ -161,7 +161,7 @@ public class RowKeySpec {
             this.delimiters = new ArrayList<>();
 
             int opens = 0, closes = 0;
-            char[] chars = trimToEmpty(format).toCharArray();
+            char[] chars = trimToEmpty(template).toCharArray();
             String currentDelimiter = "";
             for (int i = 0, open = -1, close = -1; i < chars.length; i++) {
                 char c = chars[i];
@@ -195,7 +195,7 @@ public class RowKeySpec {
                                     PartVariable.builder().type(variableType).name(variableName).format(variableFormat).build());
                         } else {
                             throw new UnsupportedOperationException(
-                                    String.format("Invalid format variable convertType for : %s, supported: %s, %s", variable,
+                                    String.format("Invalid template variable convertType for : %s, supported: %s, %s", variable,
                                             TEXT_TYPE, DATE_TYPE));
                         }
                     }
@@ -207,8 +207,8 @@ public class RowKeySpec {
                 }
             }
             if (opens != closes) {
-                throw new IllegalArgumentException(
-                        format("Invalid row key format of: '%s', '{' count is %s, but '}' count is %s.", format, opens, closes));
+                throw new IllegalArgumentException(format(
+                        "Invalid row key template of: '%s', '{' count is %s, but '}' count is %s.", template, opens, closes));
             }
         }
 

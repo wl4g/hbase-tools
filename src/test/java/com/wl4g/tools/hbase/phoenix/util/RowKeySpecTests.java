@@ -41,7 +41,7 @@ public class RowKeySpecTests {
         // System.out.println(format("%02d", 1));
 
         RowKeySpec spec1 = RowKeySpec.builder()
-                .format("myprefix{text:addrIP},ELE_P,{text:templateMark},{text:addrIPOrder:%02d},{date:yyyyMMddHHmmssSSS}")
+                .template("myprefix{text:addrIP},ELE_P,{text:templateMark},{text:addrIPOrder:%02d},{date:yyyyMMddHHmmssSSS}")
                 .build();
         spec1.ensureInit();
 
@@ -55,7 +55,7 @@ public class RowKeySpecTests {
     @Test
     public void testInitWithNonPrefix() {
         RowKeySpec spec2 = RowKeySpec.builder()
-                .format("{text:addrIP},ELE_P,{text:templateMark},{text:addrIPOrder:%02d},{date:yyyyMMddHHmmssSSS}")
+                .template("{text:addrIP},ELE_P,{text:templateMark},{text:addrIPOrder:%02d},{date:yyyyMMddHHmmssSSS}")
                 .build();
         spec2.ensureInit();
 
@@ -70,7 +70,7 @@ public class RowKeySpecTests {
     @Test
     public void testInitWithSuffix() {
         RowKeySpec spec2 = RowKeySpec.builder()
-                .format("{text:addrIP},ELE_P,{text:templateMark},{text:addrIPOrder:%02d},{date:yyyyMMddHHmmssSSS}mysuffix")
+                .template("{text:addrIP},ELE_P,{text:templateMark},{text:addrIPOrder:%02d},{date:yyyyMMddHHmmssSSS}mysuffix")
                 .build();
         spec2.ensureInit();
 
@@ -85,7 +85,7 @@ public class RowKeySpecTests {
     @Test
     public void testToRowKey() {
         RowKeySpec spec = RowKeySpec.builder()
-                .format("{text:addrIP:},ELE_P,{text:templateMark},{text:addrIPOrder:%02d},{date:yyyyMMddHHmmssSSS}")
+                .template("{text:addrIP:},ELE_P,{text:templateMark},{text:addrIPOrder:%02d},{date:yyyyMMddHHmmssSSS}")
                 .build();
         Map<String, String> parts = new HashMap<>();
         parts.put("addrIP", "12345678");
@@ -100,7 +100,7 @@ public class RowKeySpecTests {
     @Test
     public void testToRowKey2() {
         RowKeySpec spec = RowKeySpec.builder()
-                .format("{date:yyyyMMddHHmmssSSS},{text:addrIP:},ELE_P,{text:templateMark},{text:addrIPOrder:%02d}")
+                .template("{date:yyyyMMddHHmmssSSS},{text:addrIP:},ELE_P,{text:templateMark},{text:addrIPOrder:%02d}")
                 .build();
         Map<String, String> parts = new HashMap<>();
         parts.put("addrIP", "12345678");
@@ -115,11 +115,12 @@ public class RowKeySpecTests {
     @Test
     public void testFromRowKey() {
         RowKeySpec spec = RowKeySpec.builder()
-                .format("{text:addrIP:},ELE_P,{text:templateMark},{text:addrIPOrder:%02d},{date:yyyyMMddHHmmssSSS}")
+                .template("{text:addrIP:},ELE_P,{text:templateMark},{text:addrIPOrder:%02d},{date:yyyyMMddHHmmssSSS}")
                 .build();
         Map<String, String> parts = spec.from("12345678,ELE_P,134,01,20221022184113");
         System.out.println(parts);
 
+        Assertions.assertEquals(parts.get(RowKeySpec.DATE_PATTERN_KEY), "20221022184113");
         Assertions.assertEquals(parts.get("addrIP"), "12345678");
         Assertions.assertEquals(parts.get("templateMark"), "134");
         Assertions.assertEquals(parts.get("addrIPOrder"), "01");
@@ -128,11 +129,12 @@ public class RowKeySpecTests {
     @Test
     public void testFromRowKey2() {
         RowKeySpec spec = RowKeySpec.builder()
-                .format("{date:yyyyMMddHHmmssSSS},{text:addrIP:},ELE_P,{text:templateMark},{text:addrIPOrder:%02d}")
+                .template("{date:yyyyMMddHHmmssSSS},{text:addrIP:},ELE_P,{text:templateMark},{text:addrIPOrder:%02d}")
                 .build();
         Map<String, String> parts = spec.from("20221022184113,12345678,ELE_P,134,01");
         System.out.println(parts);
 
+        Assertions.assertEquals(parts.get(RowKeySpec.DATE_PATTERN_KEY), "20221022184113");
         Assertions.assertEquals(parts.get("addrIP"), "12345678");
         Assertions.assertEquals(parts.get("templateMark"), "134");
         Assertions.assertEquals(parts.get("addrIPOrder"), "01");

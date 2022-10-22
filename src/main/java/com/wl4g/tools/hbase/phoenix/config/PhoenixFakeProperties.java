@@ -15,7 +15,9 @@
  */
 package com.wl4g.tools.hbase.phoenix.config;
 
+import static com.wl4g.infra.common.lang.DateUtils2.formatDate;
 import static org.apache.commons.lang3.SystemUtils.USER_HOME;
+import static org.apache.commons.lang3.time.DateUtils.addDays;
 
 import java.io.File;
 import java.time.Duration;
@@ -26,7 +28,6 @@ import java.util.List;
 import org.springframework.beans.factory.InitializingBean;
 
 import com.wl4g.infra.common.io.FileIOUtils;
-import com.wl4g.infra.common.lang.DateUtils2;
 import com.wl4g.tools.hbase.phoenix.util.RowKeySpec;
 
 import lombok.Getter;
@@ -35,7 +36,7 @@ import lombok.Setter;
 import lombok.ToString;
 
 /**
- * {@link PhoenixRepairProperties}
+ * {@link PhoenixFakeProperties}
  * 
  * @author James Wong
  * @version 2022-10-22
@@ -45,7 +46,7 @@ import lombok.ToString;
 @Setter
 @ToString
 @NoArgsConstructor
-public class PhoenixRepairProperties implements InitializingBean {
+public class PhoenixFakeProperties implements InitializingBean {
 
     private File metaCsvFile = new File(USER_HOME + "/.phoenix-fixtool/meta.csv");
 
@@ -53,40 +54,49 @@ public class PhoenixRepairProperties implements InitializingBean {
 
     private String tableName = "tb_ammeter";
 
-    private String startDate = DateUtils2.formatDate(DateUtils2.addDays(new Date(), -2), "yyyyMMddHHmm");
-
-    private String endDate = DateUtils2.formatDate(DateUtils2.addDays(new Date(), -1), "yyyyMMddHHmm");
-
-    private int maxLimit = 1440 * 10;
-
-    private RowKeySpec rowKey = new RowKeySpec();
-
-    private OffsetConfig offset = new OffsetConfig();
+    private boolean dryRun = true;
 
     private int threadPools = 1;
 
-    private long awaitSeconds = Duration.ofMillis(30).getSeconds();
+    private int maxLimit = 1440 * 10;
 
     private boolean errorContinue = false;
 
-    private boolean dryRun = true;
+    private long awaitSeconds = Duration.ofMillis(30).getSeconds();
+
+    private RowKeySpec rowKey = new RowKeySpec();
+
+    private SampleConfig sample = new SampleConfig();
+
+    private GeneratorConfig generator = new GeneratorConfig();
 
     private CumulativeColumnConfig cumulative = new CumulativeColumnConfig();
 
     @Override
     public void afterPropertiesSet() throws Exception {
         FileIOUtils.forceMkdirParent(metaCsvFile);
+        // Ensure initialized.
+        rowKey.ensureInit();
     }
 
     @Getter
     @Setter
     @ToString
     @NoArgsConstructor
-    public static class OffsetConfig {
-        private String rowKeyOffsetDatePattern = "dd";
-        private int rowKeyOffsetDateAmount = 1;
-        private double valueOffsetWithRandomMinPercentage = 0.8976;
-        private double valueOffsetWithRandomMaxPercentage = 1.1024;
+    public static class SampleConfig {
+        private String startDate = formatDate(addDays(new Date(), -2), "yyyyMMddHHmm");
+        private String endDate = formatDate(addDays(new Date(), -1), "yyyyMMddHHmm");
+    }
+
+    @Getter
+    @Setter
+    @ToString
+    @NoArgsConstructor
+    public static class GeneratorConfig {
+        private String rowKeyDatePattern = "dd";
+        private int rowKeyDateAmount = 1;
+        private double valueRandomMinPercent = 0.8976;
+        private double valueRandomMaxPercent = 1.1024;
     }
 
     @Getter

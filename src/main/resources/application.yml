@@ -38,15 +38,30 @@ logging:
       springframework.jdbc.core: DEBUG
       apache: INFO
 
-repair:
+fake:
   #metaCsvFile: ~/.phoenix-fixtool/meta.csv
   tableNamespace: safeclound
   tableName: tb_ammeter
-  rowKeyFormat: "{csv:addrIP:},ELE_P,{csv:templateMark:},{csv:addrIPOrder:%02d},{date:yyyyMMddHHmmss}"
-  maxLimit: 14400
-  #startDate: DateUtils2.formatDate(DateUtils2.addDays(new Date(), -2), "yyyyMMddHHmmss")
-  #endDate: DateUtils2.formatDate(DateUtils2.addDays(new Date(), -1), "yyyyMMddHHmmss")
-  randomMinOffsetPercentage: 0.8976
-  randomMaxOffsetPercentage: 1.1024
+  randomMinOffsetPercent: 0.8976
+  randomMaxOffsetPercent: 1.1024
+  dryRun: true
   threadPools: 1
-  
+  maxLimit: 14400
+  errorContinue: false
+  awaitSeconds: 1800
+  rowKey:
+    name: ROW
+    template: "{text:addrIP:},ELE_P,{text:templateMark:},{text:addrIPOrder:%02d},{date:yyyyMMddHHmmssSSS}"
+  #sample:
+    #startDate: formatDate(addDays(new Date(), -2), "yyyyMMddHHmm")
+    #endDate: formatDate(addDays(new Date(), -1), "yyyyMMddHHmm")
+  generator:
+    rowKeyDatePattern: dd
+    rowKeyDateAmcount: 1
+    valueRandomMinPercent: 0.8976
+    valueRandomMaxPercent: 1.1024
+  cumulative:
+    columnNames:
+    - activePower
+    - reactivePower
+

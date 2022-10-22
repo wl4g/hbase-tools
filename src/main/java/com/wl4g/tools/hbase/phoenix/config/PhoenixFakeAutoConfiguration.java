@@ -22,19 +22,19 @@ import org.springframework.context.annotation.Configuration;
 import com.wl4g.tools.hbase.phoenix.handler.CumulativeColumnRepairHandler;
 
 /**
- * {@link PhoenixRepairAutoConfiguration}
+ * {@link PhoenixFakeAutoConfiguration}
  * 
  * @author James Wong
  * @version 2022-10-22
  * @since v3.0.0
  */
 @Configuration
-public class PhoenixRepairAutoConfiguration {
+public class PhoenixFakeAutoConfiguration {
 
     @Bean
-    @ConfigurationProperties(prefix = "repair")
-    public PhoenixRepairProperties phoenixRepairProperties() {
-        return new PhoenixRepairProperties();
+    @ConfigurationProperties(prefix = "fake")
+    public PhoenixFakeProperties phoenixFakeProperties() {
+        return new PhoenixFakeProperties();
     }
 
     @Bean

@@ -6,21 +6,22 @@ import static com.wl4g.infra.common.lang.DateUtils2.formatDate;
 import static com.wl4g.infra.common.lang.StringUtils2.eqIgnCase;
 import static java.lang.Double.parseDouble;
 import static java.lang.String.format;
+import static java.util.Collections.emptyMap;
 import static java.util.Objects.nonNull;
-import static org.apache.commons.lang3.StringUtils.isNumeric;
+import static java.util.stream.Collectors.toMap;
 import static org.apache.commons.lang3.time.DateUtils.addDays;
 import static org.apache.commons.lang3.time.DateUtils.addHours;
 import static org.apache.commons.lang3.time.DateUtils.addMinutes;
 import static org.apache.commons.lang3.time.DateUtils.addMonths;
 import static org.apache.commons.lang3.time.DateUtils.addSeconds;
 import static org.apache.commons.lang3.time.DateUtils.addYears;
+import static org.apache.commons.lang3.time.DateUtils.parseDate;
 
 import java.io.FileReader;
 import java.io.Reader;
 import java.text.ParseException;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -37,12 +38,9 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-import com.wl4g.infra.common.lang.DateUtils2;
-import com.wl4g.tools.hbase.phoenix.config.PhoenixRepairProperties;
-import com.wl4g.tools.hbase.phoenix.util.RandomOffsetUtil;
+import com.wl4g.tools.hbase.phoenix.config.PhoenixFakeProperties;
+import com.wl4g.tools.hbase.phoenix.util.FakeOffsetUtil;
 import com.wl4g.tools.hbase.phoenix.util.RowKeySpec;
-import com.wl4g.tools.hbase.phoenix.util.VariableParseUtil;
-import com.wl4g.tools.hbase.phoenix.util.VariableParseUtil.VariableInfo;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -58,7 +56,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class CumulativeColumnRepairHandler implements InitializingBean, ApplicationRunner {
 
-    private @Autowired PhoenixRepairProperties config;
+    private @Autowired PhoenixFakeProperties config;
     private @Autowired JdbcTemplate jdbcTemplate;
     private final AtomicInteger totalOfAll = new AtomicInteger(0); // e.g:devices-total
     private final AtomicInteger completedOfAll = new AtomicInteger(0);
@@ -71,9 +69,6 @@ public class CumulativeColumnRepairHandler implements InitializingBean, Applicat
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
-        LinkedHashMap<String, VariableInfo> variables = VariableParseUtil.parseVariables(config.getRowKey().getFormat());
-        log.info("Parsed rowKey variables : {}", variables);
-
         // see: https://www.baeldung.com/apache-commons-csv
         log.info("Loading metadata from csv ...");
 
@@ -82,8 +77,8 @@ public class CumulativeColumnRepairHandler implements InitializingBean, Applicat
         if (nonNull(records)) {
             for (CSVRecord record : records) {
                 log.info("Processing meta record : {}", record);
-                String fetchStartRowKey = config.getRowKey().to(safeMap(record.toMap()), config.getStartDate());
-                String fetchEndRowKey = config.getRowKey().to(safeMap(record.toMap()), config.getEndDate());
+                String fetchStartRowKey = config.getRowKey().to(safeMap(record.toMap()), config.getSample().getStartDate());
+                String fetchEndRowKey = config.getRowKey().to(safeMap(record.toMap()), config.getSample().getEndDate());
                 executor.submit(new ProcessTask(fetchStartRowKey, fetchEndRowKey));
             }
             log.info("Waiting for running completion with {}sec ...", config.getAwaitSeconds());
@@ -112,26 +107,40 @@ public class CumulativeColumnRepairHandler implements InitializingBean, Applicat
 
             // Transform generate new records.
             safeList(fromRecords).parallelStream().map(record -> {
-                String queryOffsetSql = getQueryOffsetSql(record);
-                log.debug("Fetching offset: {}", queryOffsetSql);
-                List<Map<String, Object>> result = jdbcTemplate.queryForList(queryOffsetSql);
-
                 Map<String, Object> newRecord = new HashMap<>();
-                safeMap(record).forEach((columName, value) -> {
-                    if (eqIgnCase(columName, config.getRowKey().getName())) {
-                        String newRowKey = generateNewRowKey(fetchStartRowKey, fetchEndRowKey, (String) value);
-                        newRecord.put(columName, newRowKey);
-                    } else {
-                        if (((value instanceof String) && isNumeric((String) value))) {
-                            double _value = RandomOffsetUtil.random(config.getOffset().getValueOffsetWithRandomMinPercentage(),
-                                    config.getOffset().getValueOffsetWithRandomMaxPercentage(), parseDouble((String) value));
-                            newRecord.put(columName, _value);
+                try {
+                    // Gets value bias based on history data samples.
+                    Map<String, Double> offsetAmounts = getOffsetAmountsWithHistory(record);
+
+                    // Generate random fake new record.
+                    for (Map.Entry<String, Object> e : safeMap(record).entrySet()) {
+                        String columName = e.getKey();
+                        Object value = e.getValue();
+                        Double offsetAmount = offsetAmounts.get(columName);
+
+                        if (eqIgnCase(columName, config.getRowKey().getName())) {
+                            String newRowKey = generateFakeRowKey((String) value);
+                            newRecord.put(columName, newRowKey);
                         } else {
-                            newRecord.put(columName, value);
+                            if (nonNull(offsetAmount)) {
+                                double fakeAmount = FakeOffsetUtil.random(config.getGenerator().getValueRandomMinPercent(),
+                                        config.getGenerator().getValueRandomMaxPercent(), offsetAmount);
+                                newRecord.put(columName, parseDouble((String) value) + fakeAmount);
+                            } else {
+                                // TODO
+                                log.warn("TODO 列是累计值，不能使用前一天的值作为模拟值(必须知道增量才有意义)");
+                                // newRecord.put(columName, value);
+                            }
                         }
+                        totalOfAll.incrementAndGet();
                     }
-                    totalOfAll.incrementAndGet();
-                });
+                } catch (Exception e) {
+                    if (config.isErrorContinue()) {
+                        log.warn(format("Could not parse for %s. - %s", record, e.getMessage()));
+                    } else {
+                        throw new IllegalArgumentException(e);
+                    }
+                }
                 return newRecord;
             }).forEach(newRecord -> {
                 // Save to HBase to table.
@@ -161,7 +170,11 @@ public class CumulativeColumnRepairHandler implements InitializingBean, Applicat
                     completed.incrementAndGet();
                     completedOfAll.incrementAndGet();
                 } catch (Exception e) {
-                    log.warn(format("Unable to write to htable of : %s", newRecord), e);
+                    if (config.isErrorContinue()) {
+                        log.warn(format("Unable to write to htable of : %s", newRecord), e);
+                    } else {
+                        throw new IllegalArgumentException(e);
+                    }
                 }
             });
 
@@ -176,75 +189,101 @@ public class CumulativeColumnRepairHandler implements InitializingBean, Applicat
      * select (max(to_number("activePower"))-min(to_number("activePower"))) activePower,(max(to_number("reactivePower"))-min(to_number("reactivePower"))) reactivePower
      * from "safeclound"."tb_ammeter" where "ROW">='11111277,ELE_P,134,01,2022102121' and "ROW"<='11111277,ELE_P,134,01,202210212221' limit 10;
      * </pre>
+     * 
+     * @throws ParseException
      */
-    String getQueryOffsetSql(Map<String, Object> record) {
-        String rowKey = (String) record.get(config.getRowKey().getName());
+    Map<String, Double> getOffsetAmountsWithHistory(Map<String, Object> record) throws ParseException {
+        final String rowKeyDatePattern = config.getRowKey().getVariables().get(RowKeySpec.DATE_PATTERN_KEY).getName();
+        final String rowKey = (String) record.get(config.getRowKey().getName());
+        final Map<String, String> rowKeyParts = config.getRowKey().from(rowKey);
+        // Gets sampling data record date.
+        final Date sampleStartDate = getOffsetRowKeyDate(rowKeyDatePattern, rowKeyParts, -1);
+        final String sampleStartRowKey = generateRowKey(rowKeyDatePattern, rowKeyParts, rowKey, sampleStartDate);
 
-        StringBuilder queryOffsetSqlColumParts = new StringBuilder("select ");
+        StringBuilder columns = new StringBuilder("select ");
         for (String columnName : safeList(config.getCumulative().getColumnNames())) {
-            queryOffsetSqlColumParts.append("(max(to_number(\"");
-            queryOffsetSqlColumParts.append(columnName);
-            queryOffsetSqlColumParts.append("\"))-min(to_number(\"");
-            queryOffsetSqlColumParts.append("\"))) ");
-            queryOffsetSqlColumParts.append(columnName);
-            queryOffsetSqlColumParts.append(",");
+            columns.append("(max(to_number(\"");
+            columns.append(columnName);
+            columns.append("\"))-min(to_number(\"");
+            columns.append("\"))) ");
+            columns.append(columnName);
+            columns.append(",");
         }
-        queryOffsetSqlColumParts.delete(queryOffsetSqlColumParts.length() - 1, queryOffsetSqlColumParts.length());
+        columns.delete(columns.length() - 1, columns.length());
 
-        return format("select %s from \"%s\".\"%s\" where \"ROW\">='%s' and \"ROW\"<='%s'", queryOffsetSqlColumParts,
-                config.getTableNamespace(), config.getTableName(), "", "");
+        String queryOffsetSql = format("select %s from \"%s\".\"%s\" where \"ROW\">='%s' and \"ROW\"<='%s'", columns,
+                config.getTableNamespace(), config.getTableName(), sampleStartRowKey, rowKey);
+        log.debug("Fetching offset: {}", queryOffsetSql);
+
+        List<Map<String, Object>> result = safeList(jdbcTemplate.queryForList(queryOffsetSql));
+        if (!result.isEmpty()) {
+            final Map<String, Object> offsetRecord = safeMap(result.get(0));
+            return safeList(config.getCumulative().getColumnNames()).stream()
+                    .collect(toMap(columnName -> columnName, columnName -> parseDouble((String) offsetRecord.get(columnName))));
+        }
+
+        return emptyMap();
     }
 
-    String generateNewRowKey(String fetchStartRowKey, String fetchEndRowKey, String rowKey) {
-        final Map<String, String> parts = config.getRowKey().from(fetchStartRowKey);
+    String generateFakeRowKey(final String rowKey) throws ParseException {
+        final String rowKeyDatePattern = config.getRowKey().getVariables().get(RowKeySpec.DATE_PATTERN_KEY).getName();
+        final Map<String, String> rowKeyParts = config.getRowKey().from(rowKey);
+        // Gets tampered with target record date.
+        final Date fakeDate = getOffsetRowKeyDate(rowKeyDatePattern, rowKeyParts, config.getGenerator().getRowKeyDateAmount());
+        return generateRowKey(rowKeyDatePattern, rowKeyParts, rowKey, fakeDate);
+    }
 
-        // Extract date from rowKey.
-        String rowKeyDatePattern = config.getRowKey().ensureInit().getVariables().get(RowKeySpec.DATE_PATTERN_KEY).getName();
-        String dateString = parts.get(RowKeySpec.DATE_PATTERN_KEY);
-        Date date = null;
-        try {
-            date = DateUtils2.parseDate(dateString, rowKeyDatePattern);
-            switch (config.getOffset().getRowKeyOffsetDatePattern()) {
-            case "yy":
-            case "y":
-            case "YY":
-            case "Y":
-                date = addYears(date, config.getOffset().getRowKeyOffsetDateAmount());
-                break;
-            case "MM":
-            case "M":
-                date = addMonths(date, config.getOffset().getRowKeyOffsetDateAmount());
-                break;
-            case "dd":
-            case "d":
-            case "DD":
-            case "D":
-                date = addDays(date, config.getOffset().getRowKeyOffsetDateAmount());
-                break;
-            case "HH":
-            case "H":
-            case "hh":
-            case "h":
-                date = addHours(date, config.getOffset().getRowKeyOffsetDateAmount());
-                break;
-            case "mm":
-            case "m":
-                date = addMinutes(date, config.getOffset().getRowKeyOffsetDateAmount());
-                break;
-            case "ss":
-            case "s":
-                date = addSeconds(date, config.getOffset().getRowKeyOffsetDateAmount());
-                break;
-            }
-        } catch (ParseException e) {
-            if (config.isErrorContinue()) {
-                log.warn(format("Could not to offset parse for %s. - %s", rowKey, e.getMessage()));
-            } else {
-                throw new IllegalArgumentException(e);
-            }
+    String generateRowKey(
+            final String rowKeyDatePattern,
+            final Map<String, String> rowKeyParts,
+            final String rowKey,
+            final Date rowDate) throws ParseException {
+        // Gets tampered with target record date.
+        return config.getRowKey().to(rowKeyParts, formatDate(rowDate, rowKeyDatePattern));
+    }
+
+    /**
+     * Gets offset date from rowKey.
+     * 
+     * @throws ParseException
+     */
+    Date getOffsetRowKeyDate(final String rowKeyDatePattern, final Map<String, String> rowKeyParts, int dateAmount)
+            throws ParseException {
+        String rowKeyDateString = rowKeyParts.get(RowKeySpec.DATE_PATTERN_KEY);
+        Date date = parseDate(rowKeyDateString, rowKeyDatePattern);
+        switch (config.getGenerator().getRowKeyDatePattern()) {
+        case "yy":
+        case "y":
+        case "YY":
+        case "Y":
+            date = addYears(date, dateAmount);
+            break;
+        case "MM":
+        case "M":
+            date = addMonths(date, dateAmount);
+            break;
+        case "dd":
+        case "d":
+        case "DD":
+        case "D":
+            date = addDays(date, dateAmount);
+            break;
+        case "HH":
+        case "H":
+        case "hh":
+        case "h":
+            date = addHours(date, dateAmount);
+            break;
+        case "mm":
+        case "m":
+            date = addMinutes(date, dateAmount);
+            break;
+        case "ss":
+        case "s":
+            date = addSeconds(date, dateAmount);
+            break;
         }
-
-        return config.getRowKey().to(parts, formatDate(date, rowKeyDatePattern));
+        return date;
     }
 
 }

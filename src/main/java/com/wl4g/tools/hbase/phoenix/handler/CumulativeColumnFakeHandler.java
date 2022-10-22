@@ -19,6 +19,7 @@ import static org.apache.commons.lang3.time.DateUtils.parseDate;
 
 import java.io.FileReader;
 import java.io.Reader;
+import java.math.BigDecimal;
 import java.text.ParseException;
 import java.util.Date;
 import java.util.HashMap;
@@ -38,6 +39,7 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import com.wl4g.infra.common.math.Maths;
 import com.wl4g.tools.hbase.phoenix.config.PhoenixFakeProperties;
 import com.wl4g.tools.hbase.phoenix.util.FakeOffsetUtil;
 import com.wl4g.tools.hbase.phoenix.util.RowKeySpec;
@@ -111,6 +113,7 @@ public class CumulativeColumnFakeHandler implements InitializingBean, Applicatio
                 try {
                     // Gets value bias based on history data samples.
                     Map<String, Double> offsetAmounts = getOffsetAmountsWithHistory(record);
+                    log.info("Offset amount: {}", offsetAmounts);
 
                     // Generate random fake new record.
                     for (Map.Entry<String, Object> e : safeMap(record).entrySet()) {
@@ -125,7 +128,8 @@ public class CumulativeColumnFakeHandler implements InitializingBean, Applicatio
                             if (nonNull(offsetAmount)) {
                                 double fakeAmount = FakeOffsetUtil.random(config.getGenerator().getValueRandomMinPercent(),
                                         config.getGenerator().getValueRandomMaxPercent(), offsetAmount);
-                                newRecord.put(columName, parseDouble((String) value) + fakeAmount);
+                                double fakeValue = parseDouble((String) value) + fakeAmount;
+                                newRecord.put(columName, Maths.round(fakeValue, 4));
                             } else {
                                 // TODO
                                 log.warn("TODO 列是累计值，不能使用前一天的值作为模拟值(必须知道增量才有意义)");
@@ -136,7 +140,7 @@ public class CumulativeColumnFakeHandler implements InitializingBean, Applicatio
                     }
                 } catch (Exception e) {
                     if (config.isErrorContinue()) {
-                        log.warn(format("Could not parse for %s. - %s", record, e.getMessage()));
+                        log.warn(format("Could not generate for %s. - %s", record, e.getMessage()));
                     } else {
                         throw new IllegalArgumentException(e);
                     }
@@ -202,13 +206,13 @@ public class CumulativeColumnFakeHandler implements InitializingBean, Applicatio
 
         StringBuilder columns = new StringBuilder();
         for (String columnName : safeList(config.getCumulative().getColumnNames())) {
-            columns.append("(max(to_number(\"");
+            columns.append("round((max(to_number(\"");
             columns.append(columnName);
             columns.append("\"))-min(to_number(\"");
             columns.append(columnName);
             columns.append("\")))/");
             columns.append(Math.abs(config.getSample().getLastDateAmount()));
-            columns.append(" as ");
+            columns.append(",4) as ");
             columns.append(columnName);
             columns.append(",");
         }
@@ -219,10 +223,22 @@ public class CumulativeColumnFakeHandler implements InitializingBean, Applicatio
         log.debug("Fetching offset: {}", queryOffsetSql);
 
         List<Map<String, Object>> result = safeList(jdbcTemplate.queryForList(queryOffsetSql));
+        log.debug("Gots offset amount of record: {}, result: {}", record, result);
+
         if (!result.isEmpty()) {
-            final Map<String, Object> offsetRecord = safeMap(result.get(0));
+            final Map<String, Object> resultRecord = safeMap(result.get(0));
             return safeList(config.getCumulative().getColumnNames()).stream()
-                    .collect(toMap(columnName -> columnName, columnName -> parseDouble((String) offsetRecord.get(columnName))));
+                    .collect(toMap(columnName -> columnName, columnName -> {
+                        Object columnValue = resultRecord.get(columnName);
+                        // fix: Phoenix result to Upper
+                        columnValue = resultRecord.get(columnName.toUpperCase());
+                        if (columnValue instanceof BigDecimal) {
+                            return ((BigDecimal) columnValue).doubleValue();
+                        } else if (columnValue instanceof String) {
+                            return parseDouble((String) columnValue);
+                        }
+                        throw new IllegalArgumentException(format("Unable to parse columnValue of '%s'", columnValue));
+                    }));
         }
 
         return emptyMap();

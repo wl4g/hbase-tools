@@ -207,7 +207,7 @@ public class CumulativeColumnFakeHandler implements InitializingBean, Applicatio
             columns.append("\"))-min(to_number(\"");
             columns.append(columnName);
             columns.append("\")))/");
-            columns.append(config.getSample().getLastDateAmount());
+            columns.append(Math.abs(config.getSample().getLastDateAmount()));
             columns.append(" as ");
             columns.append(columnName);
             columns.append(",");

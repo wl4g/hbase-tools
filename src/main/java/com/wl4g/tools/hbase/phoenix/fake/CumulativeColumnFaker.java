@@ -21,7 +21,6 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.google.common.util.concurrent.AtomicDouble;
-import com.wl4g.infra.common.math.Maths;
 import com.wl4g.tools.hbase.phoenix.util.RowKeySpec;
 
 import lombok.AllArgsConstructor;
@@ -129,7 +128,7 @@ public class CumulativeColumnFaker extends AbstractFaker {
             double value = -1d;
             if (valueObj instanceof String) {
                 value = parseDouble((String) valueObj);
-                return generateFakeValue(columnName, sampleRecord, offsetAmount, value).toString();
+                return generateFakeValue(columnName, sampleRecord, offsetAmount, value).toPlainString();
             } else if (valueObj instanceof Integer) {
                 value = (Integer) valueObj;
                 return generateFakeValue(columnName, sampleRecord, offsetAmount, value).intValue();
@@ -168,7 +167,7 @@ public class CumulativeColumnFaker extends AbstractFaker {
                     // generation to a number greater than the previous
                     // value.
                     config.getGenerator().getValueRandomMaxPercent() * offsetAmount);
-            double fakeValue = Maths.round(lastMaxFakeValue.get() + fakeAmount, 4).doubleValue();
+            double fakeValue = lastMaxFakeValue.get() + fakeAmount;
             // if (i > 0) {
             // log.info("Re-generating {} of offsetAmount: {}, value: {},
             // fakeValue: {}, lastMaxFakeValue: {}, sampleRecord: {}",
@@ -197,7 +196,7 @@ public class CumulativeColumnFaker extends AbstractFaker {
             // 保持 lastMaxFakeValue 有效(影响下次递增).
             lastMaxFakeValue.set(fakeValue);
 
-            return new BigDecimal(fakeValue);
+            return new BigDecimal(fakeValue).setScale(4, BigDecimal.ROUND_HALF_UP);
         }
 
         private AtomicDouble getOrInitLastMaxFakeValue(String columnName, Map<String, Object> sampleRecord, double value) {

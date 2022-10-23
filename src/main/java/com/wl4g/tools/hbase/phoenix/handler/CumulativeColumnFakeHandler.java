@@ -182,7 +182,8 @@ public class CumulativeColumnFakeHandler implements InitializingBean, Applicatio
                 }
             });
 
-            log.info("Processed completed of {}/{}", completed.get(), fromRecords.size());
+            log.info("Processed completed of {}/{}/{}/{}", completed.get(), fromRecords.size(), completedOfAll.get(),
+                    totalOfAll.get());
         }
     }
 

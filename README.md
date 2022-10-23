@@ -49,7 +49,8 @@ java -jar phoenix-fake-1.0.0-bin.jar \
 --fake.generator.valueRandomMinPercent=0.8976 \
 --fake.generator.valueRandomMaxPercent=1.1024 \
 --fake.cumulative.columnNames[0]=activePower \
---fake.cumulative.columnNames[1]=reactivePower
+--fake.cumulative.columnNames[1]=reactivePower \
+| grep upsert | awk -F ' ' '{print $15}' | awk -F "'" '{print $4}' | sed s/11111277,ELE_P,134,01,//g
 ```
 
 - ***Notice:*** The parameter: `--fake.rowKey.template` template generated for HBase table rowKey value, which supports types: `text`, `date`, template specification such as: `{text:myname1:myformat1}mydelimiter1{date:yyyyMMddHHmmssSSS}mydelimiter2{text:myname2:myformat2}...`, features refer to: [RowKeySpecTests](src/test/java/com/wl4g/tools/hbase/phoenix/util/RowKeySpecTests.java)

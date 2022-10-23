@@ -50,18 +50,21 @@ fake:
   rowKey:
     name: ROW
     template: "{text:addrIP:},ELE_P,{text:templateMark:},{text:addrIPOrder:%02d},{date:yyyyMMddHHmmssSSS}"
-  sample:
+  #sample:
     #startDate: formatDate(addDays(new Date(), -2), "yyyyMMddHHmm")
     #endDate: formatDate(addDays(new Date(), -1), "yyyyMMddHHmm")
-    lastDateAmount: -7
   generator:
     rowKeyDatePattern: dd
     rowKeyDateAmcount: 1
     valueRandomMinPercent: 1.0124
     valueRandomMaxPercent: 1.0987
-    maxAttempts: 10
-    #fallbackFakeAmountValue: 31 * Math.E * Math.PI
-  cumulative:
+  provider: CUMULATIVE ## SIMPLE|CUMULATIVE
+  simpleFaker:
+    columnNames:
+    - activePower
+    - reactivePower
+  cumulativeFaker:
+    offsetLastDateAmount: -7
     columnNames:
     - activePower
     - reactivePower

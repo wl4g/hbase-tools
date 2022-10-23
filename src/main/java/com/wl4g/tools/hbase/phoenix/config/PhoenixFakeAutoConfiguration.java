@@ -19,7 +19,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import com.wl4g.tools.hbase.phoenix.handler.CumulativeColumnFakeHandler;
+import com.wl4g.tools.hbase.phoenix.fake.CumulativeColumnFaker;
+import com.wl4g.tools.hbase.phoenix.fake.SimpleColumnFaker;
 
 /**
  * {@link PhoenixFakeAutoConfiguration}
@@ -38,8 +39,13 @@ public class PhoenixFakeAutoConfiguration {
     }
 
     @Bean
-    public CumulativeColumnFakeHandler cumulativeColumnFakeHandler() {
-        return new CumulativeColumnFakeHandler();
+    public SimpleColumnFaker simpleColumnFaker() {
+        return new SimpleColumnFaker();
+    }
+
+    @Bean
+    public CumulativeColumnFaker cumulativeColumnFaker() {
+        return new CumulativeColumnFaker();
     }
 
 }

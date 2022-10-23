@@ -28,6 +28,7 @@ import java.util.List;
 import org.springframework.beans.factory.InitializingBean;
 
 import com.wl4g.infra.common.io.FileIOUtils;
+import com.wl4g.tools.hbase.phoenix.fake.AbstractFaker.FakeProvider;
 import com.wl4g.tools.hbase.phoenix.util.RowKeySpec;
 
 import lombok.Getter;
@@ -70,7 +71,11 @@ public class PhoenixFakeProperties implements InitializingBean {
 
     private GeneratorConfig generator = new GeneratorConfig();
 
-    private CumulativeColumnConfig cumulative = new CumulativeColumnConfig();
+    private SimpleColumnFakerConfig simpleFaker = new SimpleColumnFakerConfig();
+
+    private CumulativeColumnFakerConfig cumulativeFaker = new CumulativeColumnFakerConfig();
+
+    private FakeProvider provider = FakeProvider.CUMULATIVE;
 
     @Override
     public void afterPropertiesSet() throws Exception {
@@ -89,12 +94,6 @@ public class PhoenixFakeProperties implements InitializingBean {
     public static class SampleConfig {
         private String startDate = formatDate(addDays(new Date(), -2), "yyyyMMddHHmm");
         private String endDate = formatDate(addDays(new Date(), -1), "yyyyMMddHHmm");
-
-        /**
-         * 时间量, 如: 基于过去一段时长(7d)的平均值, 使用那种"时间刻度"参考:
-         * {@link GeneratorConfig#rowKeyDatePattern}
-         */
-        private int lastDateAmount = -7;
     }
 
     @Getter
@@ -113,20 +112,48 @@ public class PhoenixFakeProperties implements InitializingBean {
         // 反之, 如果生成模拟数据无需递增, 则最小随机百分比可以 <1
         private double valueRandomMinPercent = 1.0124;
         private double valueRandomMaxPercent = 1.0987;
-        // 随机生成满足要求的 fakeValue 值时的最大尝试次数
-        private int maxAttempts = 10;
-        // 最大努力尝试依然无法满足, 则使用: (value + fallbackFakeAmountValue)
-        private double fallbackFakeAmountValue = 31 * Math.E * Math.PI;
+
+        // 更简单实现: lastMaxFakeValue * fakeAmount, 无需重试生成.
+        // /**
+        // * 随机生成满足要求的 fakeValue 值时的最大尝试次数
+        // */
+        // private int maxAttempts = 10;
+        //
+        // /**
+        // * 最大努力尝试依然无法满足, 则使用: (value + fallbackFakeAmountValue)
+        // */
+        // private double fallbackFakeAmountValue = 31 * Math.E * Math.PI;
     }
 
     @Getter
     @Setter
     @ToString
     @NoArgsConstructor
-    public static class CumulativeColumnConfig {
+    public static class SimpleColumnFakerConfig {
         private List<String> columnNames = new ArrayList<String>() {
             private static final long serialVersionUID = 1L;
             {
+                // e.g: 有功功率, 无功功率
+                add("activePower");
+                add("reactivePower");
+            }
+        };
+    }
+
+    @Getter
+    @Setter
+    @ToString
+    @NoArgsConstructor
+    public static class CumulativeColumnFakerConfig {
+        /**
+         * 时间量, 如: 基于过去一段时长(7d)的平均值, 使用那种"时间刻度"参考:
+         * {@link GeneratorConfig#rowKeyDatePattern}
+         */
+        private int offsetLastDateAmount = -7;
+        private List<String> columnNames = new ArrayList<String>() {
+            private static final long serialVersionUID = 1L;
+            {
+                // e.g: 有功电度, 无功电度
                 add("activePower");
                 add("reactivePower");
             }

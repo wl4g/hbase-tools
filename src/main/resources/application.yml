@@ -10,8 +10,6 @@
 
 spring:
   application.name: phoenix-table-fixtools
-  profiles:
-    active: dev
   datasource:
     driver-class-name: org.apache.phoenix.jdbc.PhoenixDriver
     url: ${TOOL_DB_URI:jdbc:phoenix:localhost:2181}

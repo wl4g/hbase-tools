@@ -1,8 +1,14 @@
 # Phoenix Fake Tool
 
-## Quick start
+## Quick start (example):
 
-- Generate (equipments) meta CSV SQLs example:
+### Initial example data:
+
+- [mysql-init.sql](testdata/mysql-init.sql)
+
+- [phoenix-init.sql](testdata/phoenix-init.sql)
+
+### Generate meta CSV SQLs example:
 
 ```bash
 SELECT
@@ -16,12 +22,12 @@ FROM
     INNER JOIN ed_customer c ON c.customerId = e.customerId
     LEFT JOIN ed_equiptemplate t ON t.templateId = e.templateId 
 WHERE
-    c.customerName LIKE '%粤樵东%' 
+    c.customerName LIKE '%佛山市xxx印染%' 
     AND e.addrIP IS NOT NULL 
     AND e.addrIPOrder > 0
 ```
 
-- Execution fake (Generate random floating simulation data based on Htable historical data)
+### Execution fake (Generate random floating simulation data based on Htable historical data)
 
 ```bash
 java -jar phoenix-fake-1.0.0-bin.jar \
@@ -46,10 +52,10 @@ java -jar phoenix-fake-1.0.0-bin.jar \
 --fake.cumulative.columnNames[1]=reactivePower
 ```
 
-- Notice: The parameter: `--fake.rowKey.template` template generated for HBase table rowKey value, which supports types: `text`, `date`, template specification such as: `{text:myname1:myformat1}mydelimiter1{date:yyyyMMddHHmmssSSS}mydelimiter2{text:myname2:myformat2}...`, features refer to: [RowKeySpecTests](src/test/java/com/wl4g/tools/hbase/phoenix/util/RowKeySpecTests.java)
+- ***Notice:*** The parameter: `--fake.rowKey.template` template generated for HBase table rowKey value, which supports types: `text`, `date`, template specification such as: `{text:myname1:myformat1}mydelimiter1{date:yyyyMMddHHmmssSSS}mydelimiter2{text:myname2:myformat2}...`, features refer to: [RowKeySpecTests](src/test/java/com/wl4g/tools/hbase/phoenix/util/RowKeySpecTests.java)
 
 
-## Developer quick
+## Developer guide
 
 - Building
 

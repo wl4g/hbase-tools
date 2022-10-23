@@ -85,7 +85,7 @@ public class CumulativeColumnFaker extends AbstractFaker {
                                 newRecord.put(columnName, generateFakeRowKey((String) value));
                             } else {
                                 if (nonNull(offsetAmount)) {
-                                    Double fakeValue = generateFakeValue(columnName, sampleRecord, offsetAmount, (String) value);
+                                    Object fakeValue = generateFakeValue(columnName, sampleRecord, offsetAmount, value);
                                     newRecord.put(columnName, fakeValue);
                                 } else if (!config.getCumulativeFaker().getColumnNames().contains(columnName)) {
                                     newRecord.put(columnName, value);
@@ -120,13 +120,40 @@ public class CumulativeColumnFaker extends AbstractFaker {
             }
         }
 
-        private Double generateFakeValue(
+        private Object generateFakeValue(
                 String columnName,
                 Map<String, Object> sampleRecord,
                 double offsetAmount,
-                String valueString) {
+                Object valueObj) {
 
-            double value = parseDouble(valueString);
+            double value = -1d;
+            if (valueObj instanceof String) {
+                value = parseDouble((String) valueObj);
+                return generateFakeValue(columnName, sampleRecord, offsetAmount, value).toString();
+            } else if (valueObj instanceof Integer) {
+                value = (Integer) valueObj;
+                return generateFakeValue(columnName, sampleRecord, offsetAmount, value).intValue();
+            } else if (valueObj instanceof Long) {
+                value = (Long) valueObj;
+                return generateFakeValue(columnName, sampleRecord, offsetAmount, value).longValue();
+            } else if (valueObj instanceof Float) {
+                value = (Float) valueObj;
+                return generateFakeValue(columnName, sampleRecord, offsetAmount, value).floatValue();
+            } else if (valueObj instanceof Double) {
+                value = (Double) valueObj;
+                return generateFakeValue(columnName, sampleRecord, offsetAmount, value).doubleValue();
+            } else if (valueObj instanceof BigDecimal) {
+                value = ((BigDecimal) valueObj).doubleValue();
+                return generateFakeValue(columnName, sampleRecord, offsetAmount, value);
+            }
+            return value;
+        }
+
+        private BigDecimal generateFakeValue(
+                String columnName,
+                Map<String, Object> sampleRecord,
+                double offsetAmount,
+                double value) {
 
             // Gets or initial
             AtomicDouble lastMaxFakeValue = getOrInitLastMaxFakeValue(columnName, sampleRecord, value);
@@ -170,7 +197,7 @@ public class CumulativeColumnFaker extends AbstractFaker {
             // 保持 lastMaxFakeValue 有效(影响下次递增).
             lastMaxFakeValue.set(fakeValue);
 
-            return fakeValue;
+            return new BigDecimal(fakeValue);
         }
 
         private AtomicDouble getOrInitLastMaxFakeValue(String columnName, Map<String, Object> sampleRecord, double value) {
@@ -251,4 +278,5 @@ public class CumulativeColumnFaker extends AbstractFaker {
 
         return emptyMap();
     }
+
 }

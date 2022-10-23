@@ -3,16 +3,16 @@ package com.wl4g.tools.hbase.phoenix.fake;
 import static com.wl4g.infra.common.collection.CollectionUtils2.safeList;
 import static com.wl4g.infra.common.collection.CollectionUtils2.safeMap;
 import static com.wl4g.infra.common.lang.StringUtils2.eqIgnCase;
+import static com.wl4g.infra.common.math.Maths.round;
 import static java.lang.Double.parseDouble;
 import static java.lang.String.format;
 import static org.apache.commons.lang3.RandomUtils.nextDouble;
 
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import com.wl4g.infra.common.math.Maths;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -71,7 +71,7 @@ public class SimpleColumnFaker extends AbstractFaker {
                                 if (!config.getCumulativeFaker().getColumnNames().contains(columnName)) {
                                     newRecord.put(columnName, value);
                                 } else {
-                                    Double fakeValue = generateFakeValue(columnName, sampleRecord, (String) value);
+                                    Object fakeValue = generateFakeValue(columnName, sampleRecord, value);
                                     newRecord.put(columnName, fakeValue);
                                 }
                             }
@@ -102,15 +102,29 @@ public class SimpleColumnFaker extends AbstractFaker {
             }
         }
 
-        private Double generateFakeValue(String columnName, Map<String, Object> sampleRecord, String valueString) {
-            double value = parseDouble(valueString);
-            double fakeValue = nextDouble(config.getGenerator().getValueRandomMinPercent() * value,
-                    // Since value increments must be satisfied, each retry
-                    // is multiple by a factor in order to accelerate
-                    // generation to a number greater than the previous
-                    // value.
-                    config.getGenerator().getValueRandomMaxPercent() * value);
-            return Maths.round(fakeValue, 4).doubleValue();
+        private Object generateFakeValue(String columnName, Map<String, Object> sampleRecord, Object valueObj) {
+            double value = -1d, min = config.getGenerator().getValueRandomMinPercent(),
+                    max = config.getGenerator().getValueRandomMaxPercent();
+            if (valueObj instanceof String) {
+                value = parseDouble((String) valueObj);
+                return round(nextDouble(min * value, max * value), 4).toString();
+            } else if (valueObj instanceof Integer) {
+                value = (Integer) valueObj;
+                return round(nextDouble(min * value, max * value), 4).intValue();
+            } else if (valueObj instanceof Long) {
+                value = (Long) valueObj;
+                return round(nextDouble(min * value, max * value), 4).longValue();
+            } else if (valueObj instanceof Float) {
+                value = (Float) valueObj;
+                return round(nextDouble(min * value, max * value), 4).floatValue();
+            } else if (valueObj instanceof Double) {
+                value = (Double) valueObj;
+                return round(nextDouble(min * value, max * value), 4).doubleValue();
+            } else if (valueObj instanceof BigDecimal) {
+                value = ((BigDecimal) valueObj).doubleValue();
+                return round(nextDouble(min * value, max * value), 4);
+            }
+            return value;
         }
 
     }

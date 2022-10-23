@@ -8,6 +8,8 @@ import java.nio.channels.SocketChannel;
 public class SocketChannelTests {
 
     public static void main(String[] args) throws IOException {
+        
+        
         // org.apache.hadoop.hbase.ipc.RpcClientImpl;
         // Socket s = javax.net.SocketFactory.getDefault().createSocket();
         // System.out.println(s.getLocalSocketAddress());

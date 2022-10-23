@@ -1,5 +1,6 @@
 package com.wl4g.tools.hbase.phoenix.fake;
 
+import static com.wl4g.infra.common.collection.CollectionUtils2.safeList;
 import static com.wl4g.infra.common.collection.CollectionUtils2.safeMap;
 import static com.wl4g.infra.common.lang.DateUtils2.formatDate;
 import static java.lang.String.format;
@@ -16,6 +17,7 @@ import java.io.FileReader;
 import java.io.Reader;
 import java.text.ParseException;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -74,7 +76,7 @@ public abstract class AbstractFaker implements InitializingBean, DisposableBean,
     protected abstract FakeProvider provider();
 
     private boolean isActive() {
-        return provider() != config.getProvider();
+        return provider() == config.getProvider();
     }
 
     @Override
@@ -91,9 +93,10 @@ public abstract class AbstractFaker implements InitializingBean, DisposableBean,
         if (nonNull(metaRecords)) {
             for (CSVRecord record : metaRecords) {
                 log.info("Processing meta record : {}", record);
-                String fetchStartRowKey = config.getRowKey().to(safeMap(record.toMap()), config.getSample().getStartDate());
-                String fetchEndRowKey = config.getRowKey().to(safeMap(record.toMap()), config.getSample().getEndDate());
-                executor.submit(newProcessTask(fetchStartRowKey, fetchEndRowKey));
+
+                String sampleStartRowKey = config.getRowKey().to(safeMap(record.toMap()), config.getSampleStartDate());
+                String sampleEndRowKey = config.getRowKey().to(safeMap(record.toMap()), config.getSampleEndDate());
+                executor.submit(newProcessTask(sampleStartRowKey, sampleEndRowKey));
             }
 
             log.info("Waiting for running completion with {}sec ...", config.getAwaitSeconds());
@@ -101,13 +104,25 @@ public abstract class AbstractFaker implements InitializingBean, DisposableBean,
         }
     }
 
-    protected abstract Runnable newProcessTask(String fetchStartRowKey, String fetchEndRowKey);
+    protected abstract Runnable newProcessTask(String sampleStartRowKey, String sampleEndRowKey);
+
+    protected List<Map<String, Object>> fetchSampleRecords(String sampleStartRowKey, String sampleEndRowKey) {
+        // e.g: 11111111,ELE_P,111,08,20170729165254063
+        String queryRawSql = format(
+                "select * from \"%s\".\"%s\" where \"ROW\">='%s' and \"ROW\"<='%s' order by \"ROW\" asc limit %s",
+                config.getTableNamespace(), config.getTableName(), sampleStartRowKey, sampleEndRowKey, config.getMaxLimit());
+        log.info("Fetching: {}", queryRawSql);
+        return safeList(jdbcTemplate.queryForList(queryRawSql));
+    }
 
     protected String generateFakeRowKey(final String rowKey) throws ParseException {
         final String rowKeyDatePattern = config.getRowKey().getVariables().get(RowKeySpec.DATE_PATTERN_KEY).getName();
         final Map<String, String> rowKeyParts = config.getRowKey().from(rowKey);
-        // Gets tampered with target fromRecord date.
-        final Date fakeDate = getOffsetRowKeyDate(rowKeyDatePattern, rowKeyParts, config.getGenerator().getRowKeyDateAmount());
+        final String rowKeyDateString = rowKeyParts.get(RowKeySpec.DATE_PATTERN_KEY);
+
+        final Date fakeDate = getOffsetRowKeyDate(rowKeyDatePattern, rowKeyDateString, rowKeyParts,
+                config.getGenerateRowKeyDateAmount());
+
         return generateRowKey(rowKeyDatePattern, rowKeyParts, rowKey, fakeDate);
     }
 
@@ -116,20 +131,23 @@ public abstract class AbstractFaker implements InitializingBean, DisposableBean,
             final Map<String, String> rowKeyParts,
             final String rowKey,
             final Date rowDate) throws ParseException {
-        // Gets tampered with target fromRecord date.
+        // Gets tampered with sample record date.
         return config.getRowKey().to(rowKeyParts, formatDate(rowDate, rowKeyDatePattern));
     }
 
     /**
-     * Gets offset date from rowKey.
+     * Gets offset date by rowKey.
      * 
      * @throws ParseException
      */
-    protected Date getOffsetRowKeyDate(final String rowKeyDatePattern, final Map<String, String> rowKeyParts, int dateAmount)
-            throws ParseException {
-        String rowKeyDateString = rowKeyParts.get(RowKeySpec.DATE_PATTERN_KEY);
+    protected Date getOffsetRowKeyDate(
+            final String rowKeyDatePattern,
+            final String rowKeyDateString,
+            final Map<String, String> rowKeyParts,
+            int dateAmount) throws ParseException {
+
         Date date = parseDate(rowKeyDateString, rowKeyDatePattern);
-        switch (config.getGenerator().getRowKeyDatePattern()) {
+        switch (config.getGenerateRowKeyDatePattern()) {
         case "yy":
         case "y":
         case "YY":
@@ -161,6 +179,7 @@ public abstract class AbstractFaker implements InitializingBean, DisposableBean,
             date = addSeconds(date, dateAmount);
             break;
         }
+
         return date;
     }
 

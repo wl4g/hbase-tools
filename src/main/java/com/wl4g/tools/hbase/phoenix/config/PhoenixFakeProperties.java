@@ -67,13 +67,38 @@ public class PhoenixFakeProperties implements InitializingBean {
 
     private RowKeySpec rowKey = new RowKeySpec();
 
-    private SampleConfig sample = new SampleConfig();
+    private String sampleStartDate = formatDate(addDays(new Date(), -1), "yyyyMMddHH");
 
-    private GeneratorConfig generator = new GeneratorConfig();
+    private String sampleEndDate = formatDate(new Date(), "yyyyMMddHH");
 
-    private SimpleColumnFakerConfig simpleFaker = new SimpleColumnFakerConfig();
+    /**
+     * 时间刻度: </br>
+     * 1. 用于采样时获取过去一段"时间量"的历史数据; </br>
+     * 2. 用于生成 fake 数据 rowKey 时使用(样本时间+此时间刻度的量)
+     */
+    private String generateRowKeyDatePattern = "dd";
 
-    private CumulativeColumnFakerConfig cumulativeFaker = new CumulativeColumnFakerConfig();
+    private int generateRowKeyDateAmount = 1;
+
+    // 注: 当使用 Cumulative Fake(即递增) 模拟数据时, 最小和最大随机百分比应该 >1
+    // 反之, 如果生成模拟数据无需递增, 则最小随机百分比可以 <1
+    private double valueMinRandomPercent = 1.0124;
+
+    private double valueMaxRandomPercent = 1.0987;
+
+    private List<String> columnNames = new ArrayList<String>() {
+        private static final long serialVersionUID = 1L;
+        {
+            // e.g1: 有功功率, 无功功率
+            // e.g2: 有功电度, 无功电度
+            add("activePower");
+            add("reactivePower");
+        }
+    };
+
+    private SimpleColumnFakerConfig simple = new SimpleColumnFakerConfig();
+
+    private CumulativeColumnFakerConfig cumulative = new CumulativeColumnFakerConfig();
 
     private FakeProvider provider = FakeProvider.CUMULATIVE;
 
@@ -84,34 +109,22 @@ public class PhoenixFakeProperties implements InitializingBean {
         rowKey.ensureInit();
     }
 
-    /**
-     * 从历史数据采样配置
-     */
     @Getter
     @Setter
     @ToString
-    @NoArgsConstructor
-    public static class SampleConfig {
-        private String startDate = formatDate(addDays(new Date(), -2), "yyyyMMddHHmm");
-        private String endDate = formatDate(addDays(new Date(), -1), "yyyyMMddHHmm");
+    public static class SimpleColumnFakerConfig {
     }
 
     @Getter
     @Setter
     @ToString
-    @NoArgsConstructor
-    public static class GeneratorConfig {
+    public static class CumulativeColumnFakerConfig {
+
         /**
-         * 时间刻度: </br>
-         * 1. 用于采样时获取过去一段"时间量"的历史数据; </br>
-         * 2. 用于生成 fake 数据 rowKey 时使用(样本时间+此时间刻度的量)
+         * 时间量, 如: 基于过去一段时长(7d)的平均值, 使用那种"时间刻度"参考:
+         * {@link GeneratorConfig#generateRowKeyDatePattern}
          */
-        private String rowKeyDatePattern = "dd";
-        private int rowKeyDateAmount = 1;
-        // 注: 当使用 Cumulative Fake(即递增) 模拟数据时, 最小和最大随机百分比应该 >1
-        // 反之, 如果生成模拟数据无需递增, 则最小随机百分比可以 <1
-        private double valueRandomMinPercent = 1.0124;
-        private double valueRandomMaxPercent = 1.0987;
+        private int sampleLastDateAmount = -7;
 
         // 更简单实现: lastMaxFakeValue * fakeAmount, 无需重试生成.
         // /**
@@ -123,41 +136,6 @@ public class PhoenixFakeProperties implements InitializingBean {
         // * 最大努力尝试依然无法满足, 则使用: (value + fallbackFakeAmountValue)
         // */
         // private double fallbackFakeAmountValue = 31 * Math.E * Math.PI;
-    }
-
-    @Getter
-    @Setter
-    @ToString
-    @NoArgsConstructor
-    public static class SimpleColumnFakerConfig {
-        private List<String> columnNames = new ArrayList<String>() {
-            private static final long serialVersionUID = 1L;
-            {
-                // e.g: 有功功率, 无功功率
-                add("activePower");
-                add("reactivePower");
-            }
-        };
-    }
-
-    @Getter
-    @Setter
-    @ToString
-    @NoArgsConstructor
-    public static class CumulativeColumnFakerConfig {
-        /**
-         * 时间量, 如: 基于过去一段时长(7d)的平均值, 使用那种"时间刻度"参考:
-         * {@link GeneratorConfig#rowKeyDatePattern}
-         */
-        private int offsetLastDateAmount = -7;
-        private List<String> columnNames = new ArrayList<String>() {
-            private static final long serialVersionUID = 1L;
-            {
-                // e.g: 有功电度, 无功电度
-                add("activePower");
-                add("reactivePower");
-            }
-        };
     }
 
 }

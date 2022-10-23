@@ -41,15 +41,15 @@ java -jar phoenix-fake-1.0.0-bin.jar \
 --fake.awaitSeconds=1800 \
 --fake.rowKey.name=ROW \
 --fake.rowKey.template="{text:addrIP:},ELE_P,{text:templateMark:},{text:addrIPOrder:%02d},{date:yyyyMMddHHmmssSSS}" \
---fake.sample.startDate=202210202114 \
---fake.sample.endDate=202210210835 \
---fake.generator.rowKeyDatePattern=dd \
---fake.generator.rowKeyDateAmcount=1 \
---fake.generator.valueRandomMinPercent=1.0124 \
---fake.generator.valueRandomMaxPercent=1.0987 \
---fake.cumulative.offsetLastDateAmount=-7 \
---fake.cumulative.columnNames[0]=activePower \
---fake.cumulative.columnNames[1]=reactivePower \
+--fake.sampleStartDate=202210202114 \
+--fake.sampleEndDate=202210210835 \
+--fake.generateRowKeyDatePattern=dd \
+--fake.generateRowKeyDateAmcount=1 \
+--fake.valueMinRandomPercent=1.0124 \
+--fake.valueMaxRandomPercent=1.0987 \
+--fake.columnNames[0]=activePower \
+--fake.columnNames[1]=reactivePower \
+--fake.cumulative.sampleLastDateAmount=-7 \
 --fake.provider=CUMULATIVE
 ```
 
@@ -67,10 +67,10 @@ java -jar phoenix-fake-1.0.0-bin.jar | grep Processed
 
 - ***Notice2:*** The config `--fake.dryRun` Specifies whether it is a test run mode, that is, it will not actually write to the Phoenix table, the default is: `true`.
 
-- ***Notice3:*** The config `--fake.generator.valueRandomMinPercent|valueRandomMaxPercent` When using Cumulative Fake (i.e. incrementing) to generate fake data, the minimum and maximum random percentages should be `>1`, conversely, if the generate fake data does not need to be incremented, the minimum random percentage can be `<1`.
+- ***Notice3:*** The config `--fake.valueMinRandomPercent|valueMaxRandomPercent` When using Cumulative Fake (i.e. incrementing) to generate fake data, the minimum and maximum random percentages should be `>1`, conversely, if the generate fake data does not need to be incremented, the minimum random percentage can be `<1`.
 
 - ***Notice4:*** The config `--fake.provider=CUMULATIVE|SIMPLE` setup fake provider, The `CUMLAUTIVE` algorithm is
-based on the average value of the first `--fake.sample.lastDateAmount` cycles multiplied by a random factor, and then accumulated; `SIMPLE` provider calculation is historical value * random number.
+based on the average value of the first `--fake.cumulative.sampleLastDateAmount` cycles multiplied by a random factor, and then accumulated; `SIMPLE` provider calculation is historical value * random number.
 
 ## Developer guide
 

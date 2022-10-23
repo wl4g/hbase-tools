@@ -35,7 +35,7 @@ import lombok.extern.slf4j.Slf4j;
  * @see https://www.baeldung.com/apache-commons-csv
  */
 @Slf4j
-public class CumulativeColumnFaker extends AbstractFaker {
+public class CumulativeColumnsFaker extends AbstractFaker {
 
     @Override
     protected FakeProvider provider() {
@@ -43,50 +43,43 @@ public class CumulativeColumnFaker extends AbstractFaker {
     }
 
     @Override
-    protected Runnable newProcessTask(String fetchStartRowKey, String fetchEndRowKey) {
-        return new ProcessTask(fetchStartRowKey, fetchEndRowKey);
+    protected Runnable newProcessTask(String sampleStartRowKey, String sampleEndRowKey) {
+        return new ProcessTask(sampleStartRowKey, sampleEndRowKey);
     }
 
     @AllArgsConstructor
     class ProcessTask implements Runnable {
-        private String fetchStartRowKey;
-        private String fetchEndRowKey;
+        private String sampleStartRowKey;
+        private String sampleEndRowKey;
         private final AtomicInteger completed = new AtomicInteger(0);
         private final Map<String, AtomicDouble> lastMaxFakeValues = new HashMap<>();
 
         @Override
         public void run() {
             try {
-                // Load history records.
-                // e.g: 11111111,ELE_P,111,08,20170729165254063
-                String queryRawSql = format(
-                        "select * from \"%s\".\"%s\" where \"ROW\">='%s' and \"ROW\"<='%s' order by \"ROW\" asc limit %s",
-                        config.getTableNamespace(), config.getTableName(), fetchStartRowKey, fetchEndRowKey,
-                        config.getMaxLimit());
-                log.info("Fetching: {}", queryRawSql);
-                List<Map<String, Object>> sampleRecords = jdbcTemplate.queryForList(queryRawSql);
+                List<Map<String, Object>> sampleRecords = fetchSampleRecords(sampleStartRowKey, sampleEndRowKey);
 
                 // rowKey 中时间是递增, 无法使用 parallelStream
                 safeList(sampleRecords).stream().map(sampleRecord -> {
                     Map<String, Object> newRecord = new HashMap<>();
                     try {
-                        // Gets value bias based on history data samples.
-                        Map<String, Double> offsetAmounts = getOffsetAmountsWithHistory(sampleRecord);
-                        log.info("Offset amount: {}", offsetAmounts);
+                        // Gets averages based on history data samples.
+                        Map<String, Double> incrementValues = getHistoryAvgIncrementValues(sampleRecord);
+                        log.info("Avg increment values: {}", incrementValues);
 
                         // Generate random fake new record.
                         for (Map.Entry<String, Object> e : safeMap(sampleRecord).entrySet()) {
                             String columnName = e.getKey();
                             Object value = e.getValue();
-                            Double offsetAmount = offsetAmounts.get(columnName);
+                            Double incrementValue = incrementValues.get(columnName);
 
                             if (eqIgnCase(columnName, config.getRowKey().getName())) {
                                 newRecord.put(columnName, generateFakeRowKey((String) value));
                             } else {
-                                if (nonNull(offsetAmount)) {
-                                    Object fakeValue = generateFakeValue(columnName, sampleRecord, offsetAmount, value);
+                                if (nonNull(incrementValue)) {
+                                    Object fakeValue = generateFakeValue(columnName, sampleRecord, incrementValue, value);
                                     newRecord.put(columnName, fakeValue);
-                                } else if (!config.getCumulativeFaker().getColumnNames().contains(columnName)) {
+                                } else if (!config.getColumnNames().contains(columnName)) {
                                     newRecord.put(columnName, value);
                                 } else {
                                     log.warn("TODO 列 '{}' 属于累计值，无法直接使用历史值作为 Fake 值, 必须知道增量才有意义, 或将此列从累计列移除.", columnName);
@@ -110,40 +103,34 @@ public class CumulativeColumnFaker extends AbstractFaker {
                 log.info("Processed completed of {}/{}/{}/{}", completed.get(), sampleRecords.size(), completedOfAll.get(),
                         totalOfAll.get());
             } catch (Exception e2) {
-                log.error(
-                        format("Failed to process of fetchStartRowKey: %s, fetchEndRowKey: %s", fetchStartRowKey, fetchEndRowKey),
-                        e2);
+                log.error(format("Failed to process of sampleStartRowKey: %s, sampleEndRowKey: %s", sampleStartRowKey,
+                        sampleEndRowKey), e2);
                 if (!config.isErrorContinue()) {
                     throw new IllegalStateException(e2);
                 }
             }
         }
 
-        private Object generateFakeValue(
-                String columnName,
-                Map<String, Object> sampleRecord,
-                double offsetAmount,
-                Object valueObj) {
-
+        private Object generateFakeValue(String columnName, Map<String, Object> sampleRecord, double increment, Object valueObj) {
             double value = -1d;
             if (valueObj instanceof String) {
                 value = parseDouble((String) valueObj);
-                return generateFakeValue(columnName, sampleRecord, offsetAmount, value).toPlainString();
+                return generateFakeValue(columnName, sampleRecord, increment, value).toPlainString();
             } else if (valueObj instanceof Integer) {
                 value = (Integer) valueObj;
-                return generateFakeValue(columnName, sampleRecord, offsetAmount, value).intValue();
+                return generateFakeValue(columnName, sampleRecord, increment, value).intValue();
             } else if (valueObj instanceof Long) {
                 value = (Long) valueObj;
-                return generateFakeValue(columnName, sampleRecord, offsetAmount, value).longValue();
+                return generateFakeValue(columnName, sampleRecord, increment, value).longValue();
             } else if (valueObj instanceof Float) {
                 value = (Float) valueObj;
-                return generateFakeValue(columnName, sampleRecord, offsetAmount, value).floatValue();
+                return generateFakeValue(columnName, sampleRecord, increment, value).floatValue();
             } else if (valueObj instanceof Double) {
                 value = (Double) valueObj;
-                return generateFakeValue(columnName, sampleRecord, offsetAmount, value).doubleValue();
+                return generateFakeValue(columnName, sampleRecord, increment, value).doubleValue();
             } else if (valueObj instanceof BigDecimal) {
                 value = ((BigDecimal) valueObj).doubleValue();
-                return generateFakeValue(columnName, sampleRecord, offsetAmount, value);
+                return generateFakeValue(columnName, sampleRecord, increment, value);
             }
             return value;
         }
@@ -151,27 +138,27 @@ public class CumulativeColumnFaker extends AbstractFaker {
         private BigDecimal generateFakeValue(
                 String columnName,
                 Map<String, Object> sampleRecord,
-                double offsetAmount,
+                double incrementValue,
                 double value) {
 
             // Gets or initial
-            AtomicDouble lastMaxFakeValue = getOrInitLastMaxFakeValue(columnName, sampleRecord, value);
+            AtomicDouble lastMaxFakeValue = getOrInitialLastMaxFakeValue(columnName, sampleRecord, value);
 
             // Best effort retry generating.
             // int i = 0;
-            // int maxAttempts = config.getGenerator().getMaxAttempts();
+            // int maxAttempts = config.getCumulativeFaker().getMaxAttempts();
             // do {
-            double fakeAmount = nextDouble(config.getGenerator().getValueRandomMinPercent() * offsetAmount,
-                    // Since value increments must be satisfied, each retry
+            double fakeAmount = nextDouble(config.getValueMinRandomPercent() * incrementValue,
+                    // Since value incrementValues must be satisfied, each retry
                     // is multiple by a factor in order to accelerate
                     // generation to a number greater than the previous
                     // value.
-                    config.getGenerator().getValueRandomMaxPercent() * offsetAmount);
+                    config.getValueMaxRandomPercent() * incrementValue);
             double fakeValue = lastMaxFakeValue.get() + fakeAmount;
             // if (i > 0) {
-            // log.info("Re-generating {} of offsetAmount: {}, value: {},
+            // log.info("Re-generating {} of incrementValue: {}, value: {},
             // fakeValue: {}, lastMaxFakeValue: {}, sampleRecord: {}",
-            // i, offsetAmount, value, fakeValue, lastMaxFakeValue,
+            // i, incrementValue, value, fakeValue, lastMaxFakeValue,
             // sampleRecord);
             // Thread.yield();
             // }
@@ -181,16 +168,16 @@ public class CumulativeColumnFaker extends AbstractFaker {
             // Check if max retries are exceeded.
             // if (i >= (maxAttempts - 1)) {
             // fakeValue = value +
-            // config.getGenerator().getFallbackFakeAmountValue();
+            // config.getCumulativeFaker().getFallbackFakeAmountValue();
             // log.warn("The best-effort attempts {} is still unsatisfactory. -
-            // offsetAmount: {}, value: {}, sampleRecord: {}",
-            // maxAttempts, fakeValue, offsetAmount, value, sampleRecord);
+            // incrementValue: {}, value: {}, sampleRecord: {}",
+            // maxAttempts, fakeValue, incrementValue, value, sampleRecord);
             // }
 
             isTrue(fakeValue > lastMaxFakeValue.get(),
                     "Should not be here, must be fakeValue >= lastMaxFakeValue, but %s >= %s ?", fakeValue, lastMaxFakeValue);
 
-            log.info("Update lastMaxFakeValue - offsetAmount: {}, fakeValue: {}, value: {}, sampleRecord: {}", offsetAmount,
+            log.info("Update lastMaxFakeValue - incrementValue: {}, fakeValue: {}, value: {}, sampleRecord: {}", incrementValue,
                     fakeValue, value, sampleRecord);
 
             // 保持 lastMaxFakeValue 有效(影响下次递增).
@@ -199,7 +186,7 @@ public class CumulativeColumnFaker extends AbstractFaker {
             return new BigDecimal(fakeValue).setScale(4, BigDecimal.ROUND_HALF_UP);
         }
 
-        private AtomicDouble getOrInitLastMaxFakeValue(String columnName, Map<String, Object> sampleRecord, double value) {
+        private AtomicDouble getOrInitialLastMaxFakeValue(String columnName, Map<String, Object> sampleRecord, double value) {
             AtomicDouble lastMaxFakeValue = lastMaxFakeValues.get(columnName);
             if (isNull(lastMaxFakeValue)) {
                 synchronized (this) {
@@ -229,53 +216,72 @@ public class CumulativeColumnFaker extends AbstractFaker {
      * 
      * @throws ParseException
      */
-    protected Map<String, Double> getOffsetAmountsWithHistory(Map<String, Object> fromRecord) throws ParseException {
+    protected Map<String, Double> getHistoryAvgIncrementValues(Map<String, Object> sampleRecord) throws ParseException {
         final String rowKeyDatePattern = config.getRowKey().getVariables().get(RowKeySpec.DATE_PATTERN_KEY).getName();
-        final String rowKey = (String) fromRecord.get(config.getRowKey().getName());
+        final String rowKey = (String) sampleRecord.get(config.getRowKey().getName());
         final Map<String, String> rowKeyParts = config.getRowKey().from(rowKey);
-        // Gets sampling data fromRecord date.
-        final Date sampleStartDate = getOffsetRowKeyDate(rowKeyDatePattern, rowKeyParts,
-                config.getCumulativeFaker().getOffsetLastDateAmount());
+        final String rowKeyDateString = rowKeyParts.get(RowKeySpec.DATE_PATTERN_KEY);
+
+        final Date sampleStartDate = getOffsetRowKeyDate(rowKeyDatePattern, rowKeyDateString, rowKeyParts,
+                config.getCumulative().getSampleLastDateAmount());
         final String sampleStartRowKey = generateRowKey(rowKeyDatePattern, rowKeyParts, rowKey, sampleStartDate);
 
         StringBuilder columns = new StringBuilder();
-        for (String columnName : safeList(config.getCumulativeFaker().getColumnNames())) {
+        for (String columnName : safeList(config.getColumnNames())) {
             columns.append("round((max(to_number(\"");
             columns.append(columnName);
             columns.append("\"))-min(to_number(\"");
             columns.append(columnName);
             columns.append("\")))/");
-            columns.append(Math.abs(config.getCumulativeFaker().getOffsetLastDateAmount()));
+            columns.append(Math.abs(config.getCumulative().getSampleLastDateAmount()));
             columns.append(",4) as ");
             columns.append(columnName);
             columns.append(",");
         }
-        columns.delete(columns.length() - 1, columns.length());
+        // 平均值对应总条数, 之后再除以此值, 即可得到平均每条数据的增量.
+        columns.append("count(\"");
+        columns.append(config.getRowKey().getName());
+        columns.append("\") as ");
+        columns.append(SQL_COUNT_KEY);
 
-        String queryOffsetSql = format("select %s from \"%s\".\"%s\" where \"ROW\">='%s' and \"ROW\"<='%s'", columns,
+        String queryAvgSql = format("select %s from \"%s\".\"%s\" where \"ROW\">='%s' and \"ROW\"<='%s'", columns,
                 config.getTableNamespace(), config.getTableName(), sampleStartRowKey, rowKey);
-        log.debug("Fetching offset: {}", queryOffsetSql);
+        log.debug("Fetching offset: {}", queryAvgSql);
 
-        List<Map<String, Object>> result = safeList(jdbcTemplate.queryForList(queryOffsetSql));
-        log.debug("Gots offset amount of fromRecord: {}, result: {}", fromRecord, result);
+        List<Map<String, Object>> result = safeList(jdbcTemplate.queryForList(queryAvgSql));
+        log.info("Gots average increments of sampleRecord: {}, result: {}", sampleRecord, result);
 
         if (!result.isEmpty()) {
             final Map<String, Object> resultRecord = safeMap(result.get(0));
-            return safeList(config.getCumulativeFaker().getColumnNames()).stream()
-                    .collect(toMap(columnName -> columnName, columnName -> {
-                        Object columnValue = resultRecord.get(columnName);
-                        // fix: Phoenix result to Upper
-                        columnValue = resultRecord.get(columnName.toUpperCase());
-                        if (columnValue instanceof BigDecimal) {
-                            return ((BigDecimal) columnValue).doubleValue();
-                        } else if (columnValue instanceof String) {
-                            return parseDouble((String) columnValue);
-                        }
-                        throw new IllegalArgumentException(format("Unable to parse columnValue of '%s'", columnValue));
-                    }));
+            final Long count = (Long) resultRecord.get(SQL_COUNT_KEY);
+            return safeList(config.getColumnNames()).stream().collect(toMap(columnName -> columnName, columnName -> {
+                Object columnValue = resultRecord.get(columnName);
+                // fix: Phoenix result to Upper
+                if (isNull(columnValue)) {
+                    columnValue = resultRecord.get(columnName.toUpperCase());
+                }
+                if (columnValue instanceof String) {
+                    return parseDouble((String) columnValue) / count;
+                } else if (columnValue instanceof BigDecimal) {
+                    return ((BigDecimal) columnValue).doubleValue() / count;
+                } else if (columnValue instanceof Double) {
+                    return ((Double) columnValue) / count;
+                } else if (columnValue instanceof Float) {
+                    return ((Float) columnValue).doubleValue() / count;
+                } else if (columnValue instanceof Long) {
+                    return ((Long) columnValue).doubleValue() / count;
+                } else if (columnValue instanceof Integer) {
+                    return ((Integer) columnValue).doubleValue() / count;
+                } else if (columnValue instanceof Short) {
+                    return ((Short) columnValue).doubleValue() / count;
+                }
+                throw new IllegalArgumentException(format("Unable to parse columnValue of '%s'", columnValue));
+            }));
         }
 
         return emptyMap();
     }
+
+    private static final String SQL_COUNT_KEY = "COUNT";
 
 }

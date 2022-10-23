@@ -26,7 +26,7 @@ import lombok.extern.slf4j.Slf4j;
  * @see https://www.baeldung.com/apache-commons-csv
  */
 @Slf4j
-public class SimpleColumnFaker extends AbstractFaker {
+public class SimpleColumnsFaker extends AbstractFaker {
 
     @Override
     protected FakeProvider provider() {
@@ -34,27 +34,20 @@ public class SimpleColumnFaker extends AbstractFaker {
     }
 
     @Override
-    protected Runnable newProcessTask(String fetchStartRowKey, String fetchEndRowKey) {
-        return new ProcessTask(fetchStartRowKey, fetchEndRowKey);
+    protected Runnable newProcessTask(String sampleStartRowKey, String sampleEndRowKey) {
+        return new ProcessTask(sampleStartRowKey, sampleEndRowKey);
     }
 
     @AllArgsConstructor
     class ProcessTask implements Runnable {
-        private String fetchStartRowKey;
-        private String fetchEndRowKey;
+        private String sampleStartRowKey;
+        private String sampleEndRowKey;
         private final AtomicInteger completed = new AtomicInteger(0);
 
         @Override
         public void run() {
             try {
-                // Load history records.
-                // e.g: 11111111,ELE_P,111,08,20170729165254063
-                String queryRawSql = format(
-                        "select * from \"%s\".\"%s\" where \"ROW\">='%s' and \"ROW\"<='%s' order by \"ROW\" asc limit %s",
-                        config.getTableNamespace(), config.getTableName(), fetchStartRowKey, fetchEndRowKey,
-                        config.getMaxLimit());
-                log.info("Fetching: {}", queryRawSql);
-                List<Map<String, Object>> sampleRecords = jdbcTemplate.queryForList(queryRawSql);
+                List<Map<String, Object>> sampleRecords = fetchSampleRecords(sampleStartRowKey, sampleEndRowKey);
 
                 // rowKey 中时间是递增, 无法使用 parallelStream
                 safeList(sampleRecords).stream().map(sampleRecord -> {
@@ -68,7 +61,7 @@ public class SimpleColumnFaker extends AbstractFaker {
                             if (eqIgnCase(columnName, config.getRowKey().getName())) {
                                 newRecord.put(columnName, generateFakeRowKey((String) value));
                             } else {
-                                if (!config.getCumulativeFaker().getColumnNames().contains(columnName)) {
+                                if (!config.getColumnNames().contains(columnName)) {
                                     newRecord.put(columnName, value);
                                 } else {
                                     Object fakeValue = generateFakeValue(columnName, sampleRecord, value);
@@ -93,9 +86,8 @@ public class SimpleColumnFaker extends AbstractFaker {
                 log.info("Processed completed of {}/{}/{}/{}", completed.get(), sampleRecords.size(), completedOfAll.get(),
                         totalOfAll.get());
             } catch (Exception e2) {
-                log.error(
-                        format("Failed to process of fetchStartRowKey: %s, fetchEndRowKey: %s", fetchStartRowKey, fetchEndRowKey),
-                        e2);
+                log.error(format("Failed to process of sampleStartRowKey: %s, sampleEndRowKey: %s", sampleStartRowKey,
+                        sampleEndRowKey), e2);
                 if (!config.isErrorContinue()) {
                     throw new IllegalStateException(e2);
                 }
@@ -103,8 +95,7 @@ public class SimpleColumnFaker extends AbstractFaker {
         }
 
         private Object generateFakeValue(String columnName, Map<String, Object> sampleRecord, Object valueObj) {
-            double value = -1d, min = config.getGenerator().getValueRandomMinPercent(),
-                    max = config.getGenerator().getValueRandomMaxPercent();
+            double value = -1d, min = config.getValueMinRandomPercent(), max = config.getValueMaxRandomPercent();
             if (valueObj instanceof String) {
                 value = parseDouble((String) valueObj);
                 return round(nextDouble(min * value, max * value), 4).toString();

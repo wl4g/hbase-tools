@@ -56,20 +56,30 @@ public abstract class AbstractFaker implements InitializingBean, DisposableBean,
 
     @Override
     public void afterPropertiesSet() throws Exception {
+        if (!isActive()) {
+            return;
+        }
         this.executor = Executors.newFixedThreadPool((config.getThreadPools() <= 1) ? 1 : config.getThreadPools());
     }
 
     @Override
     public void destroy() throws Exception {
+        if (!isActive()) {
+            return;
+        }
         log.info("Processed all completed of {}/{}", completedOfAll.get(), totalOfAll.get());
         executor.shutdown();
     }
 
     protected abstract FakeProvider provider();
 
+    private boolean isActive() {
+        return provider() != config.getProvider();
+    }
+
     @Override
     public void run(ApplicationArguments args) throws Exception {
-        if (provider() != config.getProvider()) {
+        if (!isActive()) {
             return;
         }
 

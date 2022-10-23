@@ -24,6 +24,7 @@ import static com.wl4g.infra.common.lang.StringUtils2.eqIgnCase;
 import static java.lang.Integer.parseInt;
 import static java.lang.String.format;
 import static java.util.Arrays.copyOfRange;
+import static java.util.Collections.synchronizedList;
 import static java.util.Collections.synchronizedMap;
 import static java.util.Objects.nonNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -76,7 +77,6 @@ public class RowKeySpec {
     public String to(@NotNull Map<String, String> parts, @NotBlank String rowDate) {
         notNullOf(parts, "rowKeyParts");
         hasTextOf(rowDate, "rowDate");
-
         ensureInit();
 
         if (isBlank(rowKeyWithUnresolveDate)) {
@@ -123,6 +123,7 @@ public class RowKeySpec {
         hasTextOf(rowKey, "rowKey");
         ensureInit();
 
+        // 模版变量与分隔符错位拼接(注:分隔符先开始,且数量相等)
         Map<String, String> parts = new HashMap<>();
         List<PartVariable> _variables = safeList(safeMap(variables).values());
         String decrement = rowKey;
@@ -141,6 +142,7 @@ public class RowKeySpec {
             }
         }
 
+        // 剩最后一个模版变量需单独处理.
         PartVariable pv = _variables.get(_variables.size() - 1);
         if (pv.getType().equals(DATE_TYPE)) {
             parts.put(DATE_PATTERN_KEY, decrement);
@@ -158,7 +160,7 @@ public class RowKeySpec {
 
         synchronized (this) {
             this.variables = synchronizedMap(new LinkedHashMap<>());
-            this.delimiters = new ArrayList<>();
+            this.delimiters = synchronizedList(new ArrayList<>());
 
             int opens = 0, closes = 0;
             char[] chars = trimToEmpty(template).toCharArray();

@@ -53,6 +53,16 @@ java -jar phoenix-fake-1.0.0-bin.jar \
 | grep upsert | awk -F ' ' '{print $15}' | awk -F "'" '{print $4}' | sed s/11111277,ELE_P,134,01,//g
 ```
 
+- Filter real-time log tricks examples:
+
+```bash
+# Filter the rowKey date that generated fake data records 
+java -jar phoenix-fake-1.0.0-bin.jar | grep upsert | awk -F ' ' '{print $15}' | awk -F "'" '{print $4}' | sed s/11111277,ELE_P,134,01,//g
+
+# Filter processed statistics.
+java -jar phoenix-fake-1.0.0-bin.jar | grep Processed
+```
+
 - ***Notice:*** The parameter: `--fake.rowKey.template` template generated for HBase table rowKey value, which supports types: `text`, `date`, template specification such as: `{text:myname1:myformat1}mydelimiter1{date:yyyyMMddHHmmssSSS}mydelimiter2{text:myname2:myformat2}...`, features refer to: [RowKeySpecTests](src/test/java/com/wl4g/tools/hbase/phoenix/util/RowKeySpecTests.java)
 
 

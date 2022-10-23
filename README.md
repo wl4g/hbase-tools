@@ -49,7 +49,7 @@ java -jar phoenix-fake-1.0.0-bin.jar \
 --fake.generator.valueRandomMinPercent=1.0124 \
 --fake.generator.valueRandomMaxPercent=1.0987 \
 --fake.generator.maxAttempts=10 \
---fake.generator.fallbackFakeAmountValue=0 \
+--fake.generator.fallbackFakeAmountValue=262.818 \
 --fake.cumulative.columnNames[0]=activePower \
 --fake.cumulative.columnNames[1]=reactivePower
 ```

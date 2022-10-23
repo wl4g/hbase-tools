@@ -57,8 +57,10 @@ fake:
   generator:
     rowKeyDatePattern: dd
     rowKeyDateAmcount: 1
-    valueRandomMinPercent: 0.8976
-    valueRandomMaxPercent: 1.1024
+    valueRandomMinPercent: 1.0124
+    valueRandomMaxPercent: 1.0987
+    maxAttempts: 10
+    #fallbackFakeAmountValue: 31 * Math.E * Math.PI
   cumulative:
     columnNames:
     - activePower

@@ -9,6 +9,7 @@ import static java.lang.String.format;
 import static java.util.Collections.emptyMap;
 import static java.util.Objects.nonNull;
 import static java.util.stream.Collectors.toMap;
+import static org.apache.commons.lang3.RandomUtils.nextDouble;
 import static org.apache.commons.lang3.time.DateUtils.addDays;
 import static org.apache.commons.lang3.time.DateUtils.addHours;
 import static org.apache.commons.lang3.time.DateUtils.addMinutes;
@@ -39,16 +40,16 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import com.google.common.util.concurrent.AtomicDouble;
 import com.wl4g.infra.common.math.Maths;
 import com.wl4g.tools.hbase.phoenix.config.PhoenixFakeProperties;
-import com.wl4g.tools.hbase.phoenix.util.FakeOffsetUtil;
 import com.wl4g.tools.hbase.phoenix.util.RowKeySpec;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * {@link CumulativeColumnFakeHandler}
+ * 累计列 Fake 数据处理器. 即, 列的数值是累计递增的, 如: 电表电度读数时序数据.
  * 
  * @author James Wong
  * @version 2022-10-22
@@ -96,6 +97,7 @@ public class CumulativeColumnFakeHandler implements InitializingBean, Applicatio
         private String fetchStartRowKey;
         private String fetchEndRowKey;
         private final AtomicInteger completed = new AtomicInteger(0);
+        private final AtomicDouble lastFakeValue = new AtomicDouble(0);
 
         @Override
         public void run() {
@@ -126,10 +128,8 @@ public class CumulativeColumnFakeHandler implements InitializingBean, Applicatio
                             newRecord.put(columName, newRowKey);
                         } else {
                             if (nonNull(offsetAmount)) {
-                                double fakeAmount = FakeOffsetUtil.random(config.getGenerator().getValueRandomMinPercent(),
-                                        config.getGenerator().getValueRandomMaxPercent(), offsetAmount);
-                                double fakeValue = parseDouble((String) value) + fakeAmount;
-                                newRecord.put(columName, Maths.round(fakeValue, 4));
+                                Double fakeValue = generateFakeValue(record, offsetAmount, (String) value);
+                                newRecord.put(columName, fakeValue);
                             } else if (!config.getCumulative().getColumnNames().contains(columName)) {
                                 newRecord.put(columName, value);
                             } else {
@@ -185,6 +185,42 @@ public class CumulativeColumnFakeHandler implements InitializingBean, Applicatio
             log.info("Processed completed of {}/{}/{}/{}", completed.get(), fromRecords.size(), completedOfAll.get(),
                     totalOfAll.get());
         }
+
+        private Double generateFakeValue(Map<String, Object> record, double offsetAmount, String valueString) {
+            double fakeValue = 0d, value = parseDouble(valueString);
+            // 最大努力重试
+            int i = 0, factor = 0, maxAttempts = config.getGenerator().getMaxAttempts();
+            do {
+                double fakeAmount = nextDouble(config.getGenerator().getValueRandomMinPercent() * offsetAmount,
+                        // Since value increments must be satisfied, each retry
+                        // is multiple by a factor in order to accelerate
+                        // generation to a number greater than the previous
+                        // value.
+                        config.getGenerator().getValueRandomMaxPercent() * offsetAmount * ++factor);
+                fakeValue = Maths.round(value + fakeAmount, 4).doubleValue();
+                if (i > 0) {
+                    log.warn("Retry generating incremented fakeValue of offsetAmount: {}, value: {}, record: {}", offsetAmount,
+                            value, record);
+                    Thread.yield();
+                }
+            } while (i++ < maxAttempts && fakeValue < lastFakeValue.get());
+
+            // 检查最大重试是否失败
+            if (i >= (maxAttempts - 1)) {
+                log.warn(
+                        "The best-effort attempts {} is still unsatisfactory, using the default value: {}. - offsetAmount: {}, value: {}, record: {}",
+                        maxAttempts, 0, offsetAmount, value, record);
+                fakeValue = value + config.getGenerator().getFallbackFakeAmountValue();
+            }
+
+            // 尽量保持 lastFakeValue 有效(影响下次递增).
+            if ((fakeValue > 0 && fakeValue >= value) || fakeValue > lastFakeValue.get()) {
+                lastFakeValue.set(fakeValue);
+            }
+
+            return fakeValue;
+        }
+
     }
 
     /**

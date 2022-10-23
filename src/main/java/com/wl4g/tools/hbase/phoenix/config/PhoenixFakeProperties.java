@@ -48,7 +48,7 @@ import lombok.ToString;
 @NoArgsConstructor
 public class PhoenixFakeProperties implements InitializingBean {
 
-    private File metaCsvFile = new File(USER_HOME + "/.phoenix-fixtool/meta.csv");
+    private File metaCsvFile = new File(USER_HOME + "/.phoenix-fake-tool/meta.csv");
 
     private String tableNamespace = "safeclound";
 
@@ -109,8 +109,14 @@ public class PhoenixFakeProperties implements InitializingBean {
          */
         private String rowKeyDatePattern = "dd";
         private int rowKeyDateAmount = 1;
-        private double valueRandomMinPercent = 0.8976;
-        private double valueRandomMaxPercent = 1.1024;
+        // 注: 当使用 Cumulative Fake(即递增) 模拟数据时, 最小和最大随机百分比应该 >1
+        // 反之, 如果生成模拟数据无需递增, 则最小随机百分比可以 <1
+        private double valueRandomMinPercent = 1.0124;
+        private double valueRandomMaxPercent = 1.0987;
+        // 随机生成满足要求的 fakeValue 值时的最大尝试次数
+        private int maxAttempts = 10;
+        // 最大努力尝试依然无法满足, 则使用: (value + fallbackFakeAmountValue)
+        private double fallbackFakeAmountValue = 31 * Math.E * Math.PI;
     }
 
     @Getter

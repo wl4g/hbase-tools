@@ -2,7 +2,6 @@ package com.wl4g.tools.hbase.phoenix.fake;
 
 import static com.wl4g.infra.common.collection.CollectionUtils2.safeList;
 import static com.wl4g.infra.common.collection.CollectionUtils2.safeMap;
-import static com.wl4g.infra.common.lang.Assert2.isTrue;
 import static com.wl4g.infra.common.lang.StringUtils2.eqIgnCase;
 import static java.lang.Double.parseDouble;
 import static java.lang.String.format;
@@ -63,21 +62,28 @@ public class CumulativeColumnsFaker extends AbstractFaker {
                 safeList(sampleRecords).stream().map(sampleRecord -> {
                     Map<String, Object> newRecord = new HashMap<>();
                     try {
-                        // Gets averages based on history data samples.
-                        Map<String, Double> incrementValues = getHistoryAvgIncrementValues(sampleRecord);
+                        // Gets averages based on before history samples data.
+                        Map<String, Double> incrementValues = getBeforeAverageIncrementValues(sampleRecord);
                         log.info("Avg increment values: {}", incrementValues);
+
+                        // Gets generate max-value limit based on after actual
+                        // data.
+                        Map<String, Double> limitValues = getGenerateFakeLimitMaxValues(sampleRecord);
+                        log.info("Limit values: {}", limitValues);
 
                         // Generate random fake new record.
                         for (Map.Entry<String, Object> e : safeMap(sampleRecord).entrySet()) {
                             String columnName = e.getKey();
                             Object value = e.getValue();
                             Double incrementValue = incrementValues.get(columnName);
+                            Double limitMaxValue = limitValues.get(columnName);
 
                             if (eqIgnCase(columnName, config.getRowKey().getName())) {
                                 newRecord.put(columnName, generateFakeRowKey((String) value));
                             } else {
                                 if (nonNull(incrementValue)) {
-                                    Object fakeValue = generateFakeValue(columnName, sampleRecord, incrementValue, value);
+                                    Object fakeValue = generateFakeValue(columnName, sampleRecord, incrementValue, limitMaxValue,
+                                            value);
                                     newRecord.put(columnName, fakeValue);
                                 } else if (!config.getColumnNames().contains(columnName)) {
                                     newRecord.put(columnName, value);
@@ -111,26 +117,31 @@ public class CumulativeColumnsFaker extends AbstractFaker {
             }
         }
 
-        private Object generateFakeValue(String columnName, Map<String, Object> sampleRecord, double increment, Object valueObj) {
+        private Object generateFakeValue(
+                String columnName,
+                Map<String, Object> sampleRecord,
+                double incrementValue,
+                Double limitMaxValue,
+                Object valueObj) {
             double value = -1d;
             if (valueObj instanceof String) {
                 value = parseDouble((String) valueObj);
-                return generateFakeValue(columnName, sampleRecord, increment, value).toPlainString();
+                return generateFakeValue(columnName, sampleRecord, incrementValue, limitMaxValue, value).toPlainString();
             } else if (valueObj instanceof Integer) {
                 value = (Integer) valueObj;
-                return generateFakeValue(columnName, sampleRecord, increment, value).intValue();
+                return generateFakeValue(columnName, sampleRecord, incrementValue, limitMaxValue, value).intValue();
             } else if (valueObj instanceof Long) {
                 value = (Long) valueObj;
-                return generateFakeValue(columnName, sampleRecord, increment, value).longValue();
+                return generateFakeValue(columnName, sampleRecord, incrementValue, limitMaxValue, value).longValue();
             } else if (valueObj instanceof Float) {
                 value = (Float) valueObj;
-                return generateFakeValue(columnName, sampleRecord, increment, value).floatValue();
+                return generateFakeValue(columnName, sampleRecord, incrementValue, limitMaxValue, value).floatValue();
             } else if (valueObj instanceof Double) {
                 value = (Double) valueObj;
-                return generateFakeValue(columnName, sampleRecord, increment, value).doubleValue();
+                return generateFakeValue(columnName, sampleRecord, incrementValue, limitMaxValue, value).doubleValue();
             } else if (valueObj instanceof BigDecimal) {
                 value = ((BigDecimal) valueObj).doubleValue();
-                return generateFakeValue(columnName, sampleRecord, increment, value);
+                return generateFakeValue(columnName, sampleRecord, incrementValue, limitMaxValue, value);
             }
             return value;
         }
@@ -139,10 +150,11 @@ public class CumulativeColumnsFaker extends AbstractFaker {
                 String columnName,
                 Map<String, Object> sampleRecord,
                 double incrementValue,
+                Double limitMaxValue,
                 double value) {
 
             // Gets or initial
-            AtomicDouble lastMaxFakeValue = getOrInitialLastMaxFakeValue(columnName, sampleRecord, value);
+            AtomicDouble lastMaxFakeValue = obtainLastMaxFakeValue(columnName, sampleRecord, value);
 
             // Best effort retry generating.
             // int i = 0;
@@ -174,8 +186,18 @@ public class CumulativeColumnsFaker extends AbstractFaker {
             // maxAttempts, fakeValue, incrementValue, value, sampleRecord);
             // }
 
-            isTrue(fakeValue > lastMaxFakeValue.get(),
-                    "Should not be here, must be fakeValue >= lastMaxFakeValue, but %s >= %s ?", fakeValue, lastMaxFakeValue);
+            // 检查是否保持递增
+            if (fakeValue < lastMaxFakeValue.get()) {
+                throw new IllegalStateException(
+                        format("Should not be here, must be fakeValue >= lastMaxFakeValue, but %s >= %s ?", fakeValue,
+                                lastMaxFakeValue));
+            }
+            // 检查是否超过 fakeEndDate 之后的实际数据最小值限制.
+            if (fakeValue >= limitMaxValue) {
+                throw new IllegalStateException(
+                        format("Invalid generated fakeValue, must be fakeValue < limitMaxValue, but %s < %s ?", fakeValue,
+                                limitMaxValue));
+            }
 
             log.info("Update lastMaxFakeValue - incrementValue: {}, fakeValue: {}, value: {}, sampleRecord: {}", incrementValue,
                     fakeValue, value, sampleRecord);
@@ -186,7 +208,7 @@ public class CumulativeColumnsFaker extends AbstractFaker {
             return new BigDecimal(fakeValue).setScale(4, BigDecimal.ROUND_HALF_UP);
         }
 
-        private AtomicDouble getOrInitialLastMaxFakeValue(String columnName, Map<String, Object> sampleRecord, double value) {
+        private AtomicDouble obtainLastMaxFakeValue(String columnName, Map<String, Object> sampleRecord, double value) {
             AtomicDouble lastMaxFakeValue = lastMaxFakeValues.get(columnName);
             if (isNull(lastMaxFakeValue)) {
                 synchronized (this) {
@@ -207,24 +229,25 @@ public class CumulativeColumnsFaker extends AbstractFaker {
     }
 
     /**
+     * 获取之前某时段的历史平均值, 用于尽量保证生成比较均匀的递增值.
+     * 
      * for example:
      * 
-     * <pre>
-     * select (max(to_number("activePower"))-min(to_number("activePower")))/7 activePower,(max(to_number("reactivePower"))-min(to_number("reactivePower")))/7 reactivePower
+     * <code>
+     * select round((max(to_number("activePower"))-min(to_number("activePower")))/7,4) as activePower,round((max(to_number("reactivePower"))-min(to_number("reactivePower")))/7,4) reactivePower
      * from "safeclound"."tb_ammeter" where "ROW">='11111277,ELE_P,134,01,202210132114' and "ROW"<='11111277,ELE_P,134,01,202210202114' limit 10;
-     * </pre>
+     * </code>
      * 
      * @throws ParseException
      */
-    protected Map<String, Double> getHistoryAvgIncrementValues(Map<String, Object> sampleRecord) throws ParseException {
-        final String rowKeyDatePattern = config.getRowKey().getVariables().get(RowKeySpec.DATE_PATTERN_KEY).getName();
-        final String rowKey = (String) sampleRecord.get(config.getRowKey().getName());
-        final Map<String, String> rowKeyParts = config.getRowKey().from(rowKey);
+    protected Map<String, Double> getBeforeAverageIncrementValues(Map<String, Object> sampleRecord) throws ParseException {
+        final String sampleRowKey = (String) sampleRecord.get(config.getRowKey().getName());
+        final Map<String, String> rowKeyParts = config.getRowKey().from(sampleRowKey);
         final String rowKeyDateString = rowKeyParts.get(RowKeySpec.DATE_PATTERN_KEY);
 
-        final Date sampleStartDate = getOffsetRowKeyDate(rowKeyDatePattern, rowKeyDateString, rowKeyParts,
-                config.getCumulative().getSampleLastDateAmount());
-        final String sampleStartRowKey = generateRowKey(rowKeyDatePattern, rowKeyParts, rowKey, sampleStartDate);
+        final Date sampleBeforeAvgStartDate = getOffsetRowKeyDate(rowKeyDateString, rowKeyParts,
+                -config.getCumulative().getSampleBeforeAverageDateAmount());
+        final String sampleBeforeAvgStartRowKey = generateRowKey(rowKeyParts, sampleRowKey, sampleBeforeAvgStartDate);
 
         StringBuilder columns = new StringBuilder();
         for (String columnName : safeList(config.getColumnNames())) {
@@ -233,7 +256,7 @@ public class CumulativeColumnsFaker extends AbstractFaker {
             columns.append("\"))-min(to_number(\"");
             columns.append(columnName);
             columns.append("\")))/");
-            columns.append(Math.abs(config.getCumulative().getSampleLastDateAmount()));
+            columns.append(Math.abs(config.getCumulative().getSampleBeforeAverageDateAmount()));
             columns.append(",4) as ");
             columns.append(columnName);
             columns.append(",");
@@ -245,8 +268,8 @@ public class CumulativeColumnsFaker extends AbstractFaker {
         columns.append(SQL_COUNT_KEY);
 
         String queryAvgSql = format("select %s from \"%s\".\"%s\" where \"ROW\">='%s' and \"ROW\"<='%s'", columns,
-                config.getTableNamespace(), config.getTableName(), sampleStartRowKey, rowKey);
-        log.debug("Fetching offset: {}", queryAvgSql);
+                config.getTableNamespace(), config.getTableName(), sampleBeforeAvgStartRowKey, sampleRowKey);
+        log.debug("Query sample before average sql: {}", queryAvgSql);
 
         List<Map<String, Object>> result = safeList(jdbcTemplate.queryForList(queryAvgSql));
         log.info("Gots average increments of sampleRecord: {}, result: {}", sampleRecord, result);
@@ -256,8 +279,7 @@ public class CumulativeColumnsFaker extends AbstractFaker {
             final Long count = (Long) resultRecord.get(SQL_COUNT_KEY);
             return safeList(config.getColumnNames()).stream().collect(toMap(columnName -> columnName, columnName -> {
                 Object columnValue = resultRecord.get(columnName);
-                // fix: Phoenix result to Upper
-                if (isNull(columnValue)) {
+                if (isNull(columnValue)) { // fix: Phoenix default to Upper
                     columnValue = resultRecord.get(columnName.toUpperCase());
                 }
                 if (columnValue instanceof String) {
@@ -276,6 +298,61 @@ public class CumulativeColumnsFaker extends AbstractFaker {
                     return ((Short) columnValue).doubleValue() / count;
                 }
                 throw new IllegalArgumentException(format("Unable to parse columnValue of '%s'", columnValue));
+            }));
+        }
+
+        return emptyMap();
+    }
+
+    /**
+     * 获取用于限制每次生成累计值都不会超过 fakeEndDate 之后的最小值. </br>
+     * for example:
+     * 
+     * <code>
+     * select rount(min(to_number("activePower")),4) as activePower,rount(min(to_number("reactivePower")),4) as reactivePower
+     * from "safeclound"."tb_ammeter" where "ROW">='11111277,ELE_P,134,01,202210220834' and "ROW"<='11111277,ELE_P,134,01,202210230834' limit 10;
+     * </code>
+     * 
+     * @throws ParseException
+     */
+    protected Map<String, Double> getGenerateFakeLimitMaxValues(Map<String, Object> sampleRecord) throws ParseException {
+        final String sampleRowKey = (String) sampleRecord.get(config.getRowKey().getName());
+        final Map<String, String> rowKeyParts = config.getRowKey().from(sampleRowKey);
+
+        // 从 fakeEndDate 开始向后取任意时间点作为结束时间(这里硬编码为2个周期),
+        final Date limitStartDate = getOffsetDate(fakeEndDate, config.getSampleLastDatePattern(),
+                config.getSampleLastDateAmount());
+        final Date limitEndDate = getOffsetDate(fakeEndDate, config.getSampleLastDatePattern(),
+                config.getSampleLastDateAmount() * 2);
+        final String limitStartRowKey = generateRowKey(rowKeyParts, sampleRowKey, limitStartDate);
+        final String limitEndRowKey = generateRowKey(rowKeyParts, sampleRowKey, limitEndDate);
+
+        StringBuilder columns = new StringBuilder();
+        for (String columnName : safeList(config.getColumnNames())) {
+            columns.append("round(min(to_number(\"");
+            columns.append(columnName);
+            columns.append("\")),4) as ");
+            columns.append(columnName);
+            columns.append(",");
+        }
+        columns.delete(columns.length() - 1, columns.length());
+
+        String queryLimitSql = format("select %s from \"%s\".\"%s\" where \"ROW\">='%s' and \"ROW\"<='%s'", columns,
+                config.getTableNamespace(), config.getTableName(), limitStartRowKey, limitEndRowKey);
+        log.debug("Query limit sql: {}", queryLimitSql);
+
+        List<Map<String, Object>> result = safeList(jdbcTemplate.queryForList(queryLimitSql));
+        log.info("Gots limit of sampleRecord: {}, result: {}", sampleRecord, result);
+
+        if (!result.isEmpty()) {
+            final Map<String, Object> resultRecord = safeMap(result.get(0));
+            return safeList(config.getColumnNames()).stream().collect(toMap(columnName -> columnName, columnName -> {
+                Object columnValue = resultRecord.get(columnName);
+                if (isNull(columnValue)) { // fix: Phoenix default to Upper
+                    columnValue = resultRecord.get(columnName.toUpperCase());
+                }
+                // 为空则表示 fakeEndDate 之后无数据, 也即无法限制生成的 fakeValue 限制.
+                return isNull(columnValue) ? Double.MAX_VALUE : ((Double) columnValue);
             }));
         }
 

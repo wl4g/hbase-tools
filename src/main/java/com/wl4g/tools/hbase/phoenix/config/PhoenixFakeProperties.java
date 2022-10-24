@@ -25,6 +25,8 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+import javax.validation.constraints.Min;
+
 import org.springframework.beans.factory.InitializingBean;
 
 import com.wl4g.infra.common.io.FileIOUtils;
@@ -67,18 +69,19 @@ public class PhoenixFakeProperties implements InitializingBean {
 
     private RowKeySpec rowKey = new RowKeySpec();
 
-    private String sampleStartDate = formatDate(addDays(new Date(), -1), "yyyyMMddHH");
+    private String startDate = formatDate(addDays(new Date(), -1), "yyyyMMddHH");
 
-    private String sampleEndDate = formatDate(new Date(), "yyyyMMddHH");
+    private String endDate = formatDate(new Date(), "yyyyMMddHH");
 
     /**
-     * 时间刻度: </br>
-     * 1. 用于采样时获取过去一段"时间量"的历史数据; </br>
-     * 2. 用于生成 fake 数据 rowKey 时使用(样本时间+此时间刻度的量)
+     * 时间刻度: 如用于采样时获取过去一段"时间量"的历史数据; </br>
      */
-    private String generateRowKeyDatePattern = "dd";
+    private String sampleLastDatePattern = "dd";
 
-    private int generateRowKeyDateAmount = 1;
+    /**
+     * 时间量: 对应 {@link #sampleLastDatePattern}
+     */
+    private @Min(1) int sampleLastDateAmount = 1;
 
     // 注: 当使用 Cumulative Fake(即递增) 模拟数据时, 最小和最大随机百分比应该 >1
     // 反之, 如果生成模拟数据无需递增, 则最小随机百分比可以 <1
@@ -121,10 +124,10 @@ public class PhoenixFakeProperties implements InitializingBean {
     public static class CumulativeColumnFakerConfig {
 
         /**
-         * 时间量, 如: 基于过去一段时长(7d)的平均值, 使用那种"时间刻度"参考:
-         * {@link GeneratorConfig#generateRowKeyDatePattern}
+         * 时间量: 基于过去一段时长(3d)的平均值, 使用那种"时间刻度"参考:
+         * {@link PhoenixFakeProperties#sampleLastDatePattern}
          */
-        private int sampleLastDateAmount = -7;
+        private @Min(1) int sampleBeforeAverageDateAmount = 3;
 
         // 更简单实现: lastMaxFakeValue * fakeAmount, 无需重试生成.
         // /**

@@ -27,7 +27,7 @@ WHERE
     AND e.addrIPOrder > 0
 ```
 
-### Execution fake (Generate random floating simulation data based on Htable historical data)
+### Execution faker (Generate fake data based on characteristics such as historical sample values)
 
 ```bash
 java -jar phoenix-fake-1.0.0-bin.jar \
@@ -41,15 +41,15 @@ java -jar phoenix-fake-1.0.0-bin.jar \
 --fake.awaitSeconds=1800 \
 --fake.rowKey.name=ROW \
 --fake.rowKey.template="{text:addrIP:},ELE_P,{text:templateMark:},{text:addrIPOrder:%02d},{date:yyyyMMddHHmmssSSS}" \
---fake.sampleStartDate=202210202114 \
---fake.sampleEndDate=202210210835 \
---fake.generateRowKeyDatePattern=dd \
---fake.generateRowKeyDateAmcount=1 \
+--fake.startDate=202210202114 \
+--fake.endDate=202210210835 \
+--fake.sampleLastDatePattern=dd \
+--fake.sampleLastDateAmount=1 \
 --fake.valueMinRandomPercent=1.0124 \
 --fake.valueMaxRandomPercent=1.0987 \
 --fake.columnNames[0]=activePower \
 --fake.columnNames[1]=reactivePower \
---fake.cumulative.sampleLastDateAmount=-7 \
+--fake.cumulative.sampleBeforeAverageDateAmount=3 \
 --fake.provider=CUMULATIVE
 ```
 
@@ -63,14 +63,22 @@ java -jar phoenix-fake-1.0.0-bin.jar | grep upsert | awk -F ' ' '{print $15}' | 
 java -jar phoenix-fake-1.0.0-bin.jar | grep Processed
 ```
 
-- ***Notice1:*** The config `--fake.rowKey.template` a template generated for write to HBase table rowKey value, which supports types: `text`, `date`, template specification such as: `{text:myname1:myformat1}mydelimiter1{date:yyyyMMddHHmmssSSS}mydelimiter2{text:myname2:myformat2}...`, features refer to: [RowKeySpecTests](src/test/java/com/wl4g/tools/hbase/phoenix/util/RowKeySpecTests.java)
+## Configuration
 
-- ***Notice2:*** The config `--fake.dryRun` Specifies whether it is a test run mode, that is, it will not actually write to the Phoenix table, the default is: `true`.
+- `--fake.dryRun`: The specifies whether it is a test run mode, that is, it will not actually write to the Phoenix table, the default is: `true`.
 
-- ***Notice3:*** The config `--fake.valueMinRandomPercent|valueMaxRandomPercent` When using Cumulative Fake (i.e. incrementing) to generate fake data, the minimum and maximum random percentages should be `>1`, conversely, if the generate fake data does not need to be incremented, the minimum random percentage can be `<1`.
+- `--fake.rowKey.template`: The template generated for write to HBase table rowKey value, which supports types: `text`, `date`, template specification such as: `{text:myname1:myformat1}mydelimiter1{date:yyyyMMddHHmmssSSS}mydelimiter2{text:myname2:myformat2}...`, features refer to: [RowKeySpecTests](src/test/java/com/wl4g/tools/hbase/phoenix/util/RowKeySpecTests.java)
 
-- ***Notice4:*** The config `--fake.provider=CUMULATIVE|SIMPLE` setup fake provider, The `CUMLAUTIVE` algorithm is
-based on the average value of the first `--fake.cumulative.sampleLastDateAmount` cycles multiplied by a random factor, and then accumulated; `SIMPLE` provider calculation is historical value * random number.
+- `--fake.startDate|endEndDate`: The start/end date to generate fake data, e.g: `202210212114/202210220835`
+
+- `--fake.sampleLastDatePattern`: When generating fake data, it is necessary to refer to the data samples of the previous time period as the material of rowKey, and this is the scale pattern of the time period. default is: `dd`
+
+- `--fake.sampleLastDateAmount`: See config: `--fake.sampleLastDatePattern`, the represents the amount of date. default is: `1` 
+
+- `--fake.valueMinRandomPercent|valueMaxRandomPercent`: When using Cumulative Fake (i.e. incrementing) to generate fake data, the minimum and maximum random percentages should be `>1`, conversely, if the generate fake data does not need to be incremented, the minimum random percentage can be `<1`.
+
+- `--fake.provider=CUMULATIVE|SIMPLE`: The setup fake provider, The `CUMLAUTIVE` algorithm is
+based on the average value of the first `--fake.cumulative.sampleBeforeAverageDateAmount` cycles multiplied by a random factor, and then accumulated, default is: `3`; `SIMPLE` provider calculation is historical value * random number.
 
 ## Developer guide
 

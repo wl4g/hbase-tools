@@ -72,7 +72,7 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
                         log.info("Upper limit values: {}", upperLimitValues);
 
                         // Gets lower limit based on before actual data.
-                        Map<String, Double> lowerLimitValues = getUpperLimitFakeValues(sampleRecord);
+                        Map<String, Double> lowerLimitValues = getLowerLimitFakeValues(sampleRecord);
                         log.info("Lower limit values: {}", lowerLimitValues);
 
                         // Generate random fake new record.
@@ -157,13 +157,16 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
             AtomicDouble lastMaxFakeValue = obtainLastMaxFakeValue(columnName, sampleRecord, value);
 
             // upperLimitValue 不为 Double.MAX 则表示 fakeEndDate 之后有数据, 也即限制生成的
-            // fakeValue
-            // 上限制.
+            // fakeValue 上限制.
+            //
             // lowerLimitValue 不为 Double.MIN 则表示 fakeStartDate 之前有数据, 也即最好使用
             // (upper-lower)/count 作为平均增量
             if (upperLimitValue < Double.MAX_VALUE && lowerLimitValue > Double.MIN_VALUE) {
                 double spanAvgIncrementValue = (upperLimitValue - lowerLimitValue) / incrementCount;
                 if (spanAvgIncrementValue > 0) { // safety-check
+                    log.info(
+                            "Using spanAvgIncrementValue: {}, upperLimitValue: {}, lowerLimitValue: {}, incrementCount: {}, value: {}, sampleRecord: {}",
+                            spanAvgIncrementValue, upperLimitValue, lowerLimitValue, incrementCount, sampleRecord);
                     incrementValue = spanAvgIncrementValue;
                 }
             }
@@ -198,17 +201,18 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
 
             // 检查是否保持递增
             if (fakeValue < lastMaxFakeValue.get()) {
-                throw new IllegalStateException(
-                        format("Should not be here, must be fakeValue >= lastMaxFakeValue, but %s >= %s ?", fakeValue,
-                                lastMaxFakeValue));
+                throw new IllegalStateException(format(
+                        "Should not be here, must be fakeValue >= lastMaxFakeValue, but %s >= %s ?, valueMinRandomPercent: %s, valueMaxRandomPercent: %s, sampleRecord: %s",
+                        fakeValue, lastMaxFakeValue, config.getValueMinRandomPercent(), config.getValueMaxRandomPercent(),
+                        sampleRecord));
             }
             // 检查是否超过 fakeEndDate 之后的实际数据最小值限制.
             if (fakeValue >= upperLimitValue) {
-                throw new IllegalStateException(
-                        format("Invalid generated fakeValue, must be fakeValue < upperLimitValue, but %s < %s ?", fakeValue,
-                                upperLimitValue));
+                throw new IllegalStateException(format(
+                        "Invalid generated fakeValue, must be fakeValue < upperLimitValue, but %s < %s ?, valueMinRandomPercent: %s, valueMaxRandomPercent: %s, sampleRecord: %s",
+                        fakeValue, upperLimitValue, config.getValueMinRandomPercent(), config.getValueMaxRandomPercent(),
+                        sampleRecord));
             }
-
             log.info("Update lastMaxFakeValue - incrementValue: {}, fakeValue: {}, value: {}, sampleRecord: {}", incrementValue,
                     fakeValue, value, sampleRecord);
 
@@ -376,7 +380,7 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
                 if (isNull(columnValue)) {
                     return Double.MAX_VALUE;
                 } else if (columnValue instanceof Number) {
-                    return ((BigDecimal) columnValue).doubleValue();
+                    return ((BigDecimal) columnValue).setScale(4).doubleValue();
                 }
                 log.warn("Unable parse upperLimit of sampleRecord: {}, result: {}, columnValue: {}", sampleRecord, result,
                         columnValue);
@@ -438,7 +442,7 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
                 if (isNull(columnValue)) {
                     return Double.MIN_VALUE;
                 } else if (columnValue instanceof Number) {
-                    return ((BigDecimal) columnValue).doubleValue();
+                    return ((BigDecimal) columnValue).setScale(4).doubleValue();
                 }
                 log.warn("Unable parse lowerLimit of sampleRecord: {}, result: {}, columnValue: {}", sampleRecord, result,
                         columnValue);

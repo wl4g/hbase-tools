@@ -263,7 +263,7 @@ public abstract class AbstractColumnFaker implements InitializingBean, Disposabl
 
             String undoSql = format("delete from \"%s\".\"%s\" where \"%s\"='%s';", config.getTableNamespace(),
                     config.getTableName(), config.getRowKey().getName(), newRowKey);
-            log.info("Undo sql: {}", undoSql);
+            log.debug("Undo sql: {}", undoSql);
 
             undoWriter.getWriter().append(undoSql);
             undoWriter.getWriter().newLine();

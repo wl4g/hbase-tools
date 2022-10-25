@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import com.google.common.util.concurrent.AtomicDouble;
 import com.wl4g.infra.common.lang.DateUtils2;
+import com.wl4g.tools.hbase.phoenix.exception.IllegalFakeValuePhoenixFakeException;
 import com.wl4g.tools.hbase.phoenix.util.RowKeySpec;
 
 import lombok.extern.slf4j.Slf4j;
@@ -112,10 +113,10 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
                         }
                         totalOfAll.incrementAndGet();
                     } catch (Exception e) {
-                        if (config.isErrorContinue()) {
-                            log.warn(format("Could not generate for %s.", sampleRecord), e);
+                        if (config.isErrorContinue() && !(e instanceof IllegalFakeValuePhoenixFakeException)) {
+                            log.warn(format("Unable not generate for %s.", sampleRecord), e);
                         } else {
-                            throw new IllegalStateException(e);
+                            throw e;
                         }
                     }
 
@@ -334,14 +335,14 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
 
             // 检查是否保持递增
             if (fakeValue < lastMaxFakeValue.get()) {
-                throw new IllegalStateException(format(
+                throw new IllegalFakeValuePhoenixFakeException(format(
                         "Should not be here, must be fakeValue >= lastMaxFakeValue, but %s >= %s ?, valueMinRandomPercent: %s, valueMaxRandomPercent: %s, sampleRecord: %s",
                         fakeValue, lastMaxFakeValue, config.getValueMinRandomPercent(), config.getValueMaxRandomPercent(),
                         sampleRecord));
             }
             // 检查是否超过 fakeEndDate 之后的实际数据最小值限制.
             if (fakeValue >= upperLimitValue) {
-                throw new IllegalStateException(format(
+                throw new IllegalFakeValuePhoenixFakeException(format(
                         "Invalid generated fakeValue, must be fakeValue < upperLimitValue, but %s < %s ?, valueMinRandomPercent: %s, valueMaxRandomPercent: %s, sampleRecord: %s",
                         fakeValue, upperLimitValue, config.getValueMinRandomPercent(), config.getValueMaxRandomPercent(),
                         sampleRecord));

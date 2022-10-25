@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.wl4g.tools.hbase.phoenix.exception.IllegalFakeValuePhoenixFakeException;
+
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -71,7 +73,7 @@ public class SimpleColumnFaker extends AbstractColumnFaker {
                         }
                         totalOfAll.incrementAndGet();
                     } catch (Exception e) {
-                        if (config.isErrorContinue()) {
+                        if (config.isErrorContinue() && !(e instanceof IllegalFakeValuePhoenixFakeException)) {
                             log.warn(format("Could not generate for %s.", sampleRecord), e);
                         } else {
                             throw new IllegalStateException(e);

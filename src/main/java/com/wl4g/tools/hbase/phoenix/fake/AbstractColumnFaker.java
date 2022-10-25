@@ -242,9 +242,14 @@ public abstract class AbstractColumnFaker implements InitializingBean, Disposabl
             upsertSql.delete(upsertSql.length() - 1, upsertSql.length());
             upsertSql.append(") values (");
             safeMap(newRecord).forEach((columnName, value) -> {
-                upsertSql.append("'");
+                String symbol = "'";
+                if (nonNull(value) && value instanceof Number) {
+                    symbol = "";
+                }
+                upsertSql.append(symbol);
                 upsertSql.append(value);
-                upsertSql.append("',");
+                upsertSql.append(symbol);
+                upsertSql.append(",");
             });
             upsertSql.delete(upsertSql.length() - 1, upsertSql.length());
             upsertSql.append(")");

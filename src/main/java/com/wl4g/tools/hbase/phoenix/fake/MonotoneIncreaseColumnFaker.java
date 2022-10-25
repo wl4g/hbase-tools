@@ -5,6 +5,7 @@ import static com.wl4g.infra.common.collection.CollectionUtils2.safeMap;
 import static com.wl4g.infra.common.lang.StringUtils2.eqIgnCase;
 import static java.lang.Double.parseDouble;
 import static java.lang.String.format;
+import static java.lang.System.currentTimeMillis;
 import static java.util.Collections.emptyMap;
 import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
@@ -23,7 +24,6 @@ import com.google.common.util.concurrent.AtomicDouble;
 import com.wl4g.infra.common.lang.DateUtils2;
 import com.wl4g.tools.hbase.phoenix.util.RowKeySpec;
 
-import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -47,33 +47,45 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
         return new ProcessTask(sampleStartRowKey, sampleEndRowKey);
     }
 
-    @AllArgsConstructor
     class ProcessTask implements Runnable {
         private String sampleStartRowKey;
         private String sampleEndRowKey;
         private final AtomicInteger completed = new AtomicInteger(0);
         private final Map<String, AtomicDouble> lastMaxFakeValues = new HashMap<>();
+        private Map<String, Double> upperLimitValues;
+        private Map<String, Double> lowerLimitValues;
+
+        public ProcessTask(String sampleStartRowKey, String sampleEndRowKey) {
+            this.sampleStartRowKey = sampleStartRowKey;
+            this.sampleEndRowKey = sampleEndRowKey;
+        }
 
         @Override
         public void run() {
             try {
+                final long begin = currentTimeMillis();
                 List<Map<String, Object>> sampleRecords = fetchSampleRecords(sampleStartRowKey, sampleEndRowKey);
 
-                // rowKey 中时间是递增, 无法使用 parallelStream
-                safeList(sampleRecords).stream().map(sampleRecord -> {
+                // value 随着 rowKey 中时间是单调递增的, 无法使用 parallelStream
+                for (Map<String, Object> sampleRecord : safeList(sampleRecords)) {
                     Map<String, Object> newRecord = new HashMap<>();
                     try {
                         // Gets averages based on before history samples data.
+                        final long begin1 = currentTimeMillis();
                         Map<String, Double> incrementValues = getBeforeAverageIncrementValues(sampleRecord);
-                        log.info("Avg increment values: {}", incrementValues);
+                        log.info("Avg increment values: {}, sampleRecord: {}, cost: {}ms", incrementValues, sampleRecord,
+                                (currentTimeMillis() - begin1));
 
                         // Gets upper limit based on after actual data.
-                        Map<String, Double> upperLimitValues = getUpperLimitFakeValues(sampleRecord);
-                        log.info("Upper limit values: {}", upperLimitValues);
-
+                        if (isNull(upperLimitValues)) {
+                            upperLimitValues = getUpperLimitFakeValues(sampleRecord);
+                            log.info("Upper limit values: {}, sampleRecord: {}", sampleRecord, upperLimitValues);
+                        }
                         // Gets lower limit based on before actual data.
-                        Map<String, Double> lowerLimitValues = getLowerLimitFakeValues(sampleRecord);
-                        log.info("Lower limit values: {}", lowerLimitValues);
+                        if (isNull(lowerLimitValues)) {
+                            lowerLimitValues = getLowerLimitFakeValues(sampleRecord);
+                            log.info("Lower limit values: {}, sampleRecord: {}", sampleRecord, lowerLimitValues);
+                        }
 
                         // Generate random fake new record.
                         for (Map.Entry<String, Object> e : safeMap(sampleRecord).entrySet()) {
@@ -106,21 +118,142 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
                             throw new IllegalStateException(e);
                         }
                     }
-                    return newRecord;
-                }).forEach(newRecord -> {
+
                     writeToHTable(newRecord);
                     completed.incrementAndGet();
-                });
+                }
 
-                log.info("Processed completed of {}/{}/{}/{}", completed.get(), sampleRecords.size(), completedOfAll.get(),
-                        totalOfAll.get());
+                log.info("Processed completed of {}/{}/{}/{}, sampleStartRowKey: {}, sampleEndRowKey: {}, cost: {}ms",
+                        completed.get(), sampleRecords.size(), completedOfAll.get(), totalOfAll.get(), sampleStartRowKey,
+                        sampleEndRowKey, (currentTimeMillis() - begin));
             } catch (Exception e2) {
                 log.error(format("Failed to process of sampleStartRowKey: %s, sampleEndRowKey: %s", sampleStartRowKey,
                         sampleEndRowKey), e2);
-                if (!config.isErrorContinue()) {
-                    throw new IllegalStateException(e2);
-                }
             }
+        }
+
+        /**
+         * 获取生成的累计值的上限 (fakeEndDate 之后的最小值). </br>
+         * for example:
+         * 
+         * <code>
+         * select rount(min(to_number("activePower")),4) as activePower,rount(min(to_number("reactivePower")),4) as reactivePower
+         * from "safeclound"."tb_ammeter" where "ROW">='11111277,ELE_P,134,01,202210220834' and "ROW"<='11111277,ELE_P,134,01,202210240834' limit 10;
+         * </code>
+         * 
+         * @throws ParseException
+         */
+        private Map<String, Double> getUpperLimitFakeValues(Map<String, Object> sampleRecord) throws ParseException {
+            final String sampleRowKey = (String) sampleRecord.get(config.getRowKey().getName());
+            final Map<String, String> sampleRowKeyParts = config.getRowKey().from(sampleRowKey);
+
+            // 从 fakeEndDate 开始向后取任意时间点作为结束时间(这里硬编码为1个周期),
+            final Date upperLimitStartDate = getOffsetDate(fakeEndDate, config.getSampleLastDatePattern(),
+                    config.getSampleLastDateAmount());
+            final Date upperLimitEndDate = getOffsetDate(fakeEndDate, config.getSampleLastDatePattern(),
+                    config.getSampleLastDateAmount() * 1);
+            final String upperLimitStartRowKey = generateRowKey(sampleRowKeyParts, upperLimitStartDate);
+            final String upperLimitEndRowKey = generateRowKey(sampleRowKeyParts, upperLimitEndDate);
+
+            StringBuilder columns = new StringBuilder();
+            for (String columnName : safeList(config.getColumnNames())) {
+                columns.append("round(min(to_number(\"");
+                columns.append(columnName);
+                columns.append("\")),4) as ");
+                columns.append(columnName);
+                columns.append(",");
+            }
+            columns.delete(columns.length() - 1, columns.length());
+
+            String queryLimitSql = format("select %s from \"%s\".\"%s\" where \"ROW\">='%s' and \"ROW\"<='%s'", columns,
+                    config.getTableNamespace(), config.getTableName(), upperLimitStartRowKey, upperLimitEndRowKey);
+            log.debug("Query upperLimit sql: {}", queryLimitSql);
+
+            List<Map<String, Object>> result = safeList(jdbcTemplate.queryForList(queryLimitSql));
+            log.info("Gots upperLimit of sampleRecord: {}, result: {}", sampleRecord, result);
+
+            if (!result.isEmpty()) {
+                final Map<String, Object> resultRecord = safeMap(result.get(0));
+                return safeList(config.getColumnNames()).stream().collect(toMap(columnName -> columnName, columnName -> {
+                    Object columnValue = resultRecord.get(columnName);
+                    if (isNull(columnValue)) { // fix: Phoenix default to Upper
+                        columnValue = resultRecord.get(columnName.toUpperCase());
+                    }
+                    // 为空则表示 fakeEndDate 之后无数据, 也即无法限制生成的 fakeValue 上限制.
+                    if (isNull(columnValue)) {
+                        return Double.MAX_VALUE;
+                    } else if (columnValue instanceof Number) {
+                        return ((BigDecimal) columnValue).setScale(4).doubleValue();
+                    }
+                    log.warn("Unable parse upperLimit of sampleRecord: {}, result: {}, columnValue: {}", sampleRecord, result,
+                            columnValue);
+                    return Double.MAX_VALUE;
+                }));
+            }
+
+            return emptyMap();
+        }
+
+        /**
+         * 获取生成的累计值的下限 (fakeStartDate 之前的最大值). </br>
+         * for example:
+         * 
+         * <code>
+         * select rount(max(to_number("activePower")),4) as activePower,rount(max(to_number("reactivePower")),4) as reactivePower
+         * from "safeclound"."tb_ammeter" where "ROW">='11111277,ELE_P,134,01,202210192114' and "ROW"<='11111277,ELE_P,134,01,202210220834' limit 10;
+         * </code>
+         * 
+         * @throws ParseException
+         */
+        private Map<String, Double> getLowerLimitFakeValues(Map<String, Object> sampleRecord) throws ParseException {
+            final String sampleRowKey = (String) sampleRecord.get(config.getRowKey().getName());
+            final Map<String, String> sampleRowKeyParts = config.getRowKey().from(sampleRowKey);
+
+            // 从 fakeStartDate 开始向前取任意时间点作为开始时间(这里硬编码为1个周期),
+            final Date lowerLimitStartDate = getOffsetDate(fakeStartDate, config.getSampleLastDatePattern(),
+                    config.getSampleLastDateAmount() * -1);
+            final Date lowerLimitEndDate = getOffsetDate(fakeStartDate, config.getSampleLastDatePattern(),
+                    config.getSampleLastDateAmount());
+            final String lowerLimitStartRowKey = generateRowKey(sampleRowKeyParts, lowerLimitStartDate);
+            final String lowerLimitEndRowKey = generateRowKey(sampleRowKeyParts, lowerLimitEndDate);
+
+            StringBuilder columns = new StringBuilder();
+            for (String columnName : safeList(config.getColumnNames())) {
+                columns.append("round(max(to_number(\"");
+                columns.append(columnName);
+                columns.append("\")),4) as ");
+                columns.append(columnName);
+                columns.append(",");
+            }
+            columns.delete(columns.length() - 1, columns.length());
+
+            String queryLimitSql = format("select %s from \"%s\".\"%s\" where \"ROW\">='%s' and \"ROW\"<='%s'", columns,
+                    config.getTableNamespace(), config.getTableName(), lowerLimitStartRowKey, lowerLimitEndRowKey);
+            log.debug("Query lowerLimit sql: {}", queryLimitSql);
+
+            List<Map<String, Object>> result = safeList(jdbcTemplate.queryForList(queryLimitSql));
+            log.info("Gots lowerLimit of sampleRecord: {}, result: {}", sampleRecord, result);
+
+            if (!result.isEmpty()) {
+                final Map<String, Object> resultRecord = safeMap(result.get(0));
+                return safeList(config.getColumnNames()).stream().collect(toMap(columnName -> columnName, columnName -> {
+                    Object columnValue = resultRecord.get(columnName);
+                    if (isNull(columnValue)) { // fix: Phoenix default to Upper
+                        columnValue = resultRecord.get(columnName.toUpperCase());
+                    }
+                    // 为空则表示 fakeStartDate 之前无数据, 也即无法限制生成的 fakeValue 下限制.
+                    if (isNull(columnValue)) {
+                        return Double.MIN_VALUE;
+                    } else if (columnValue instanceof Number) {
+                        return ((BigDecimal) columnValue).setScale(4).doubleValue();
+                    }
+                    log.warn("Unable parse lowerLimit of sampleRecord: {}, result: {}, columnValue: {}", sampleRecord, result,
+                            columnValue);
+                    return Double.MIN_VALUE;
+                }));
+            }
+
+            return emptyMap();
         }
 
         private Object generateFakeValue(
@@ -256,13 +389,13 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
      */
     protected Map<String, Double> getBeforeAverageIncrementValues(Map<String, Object> sampleRecord) throws ParseException {
         final String sampleRowKey = (String) sampleRecord.get(config.getRowKey().getName());
-        final Map<String, String> rowKeyParts = config.getRowKey().from(sampleRowKey);
-        final String rowKeyDateString = rowKeyParts.get(RowKeySpec.DATE_PATTERN_KEY);
-        final Date sampleBeforeAvgEndDate = DateUtils2.parseDate(rowKeyDateString, rowKeyDatePattern);
+        final Map<String, String> sampleRowKeyParts = config.getRowKey().from(sampleRowKey);
+        final String sampleRowKeyDateString = sampleRowKeyParts.get(RowKeySpec.DATE_PATTERN_KEY);
+        final Date sampleBeforeAvgEndDate = DateUtils2.parseDate(sampleRowKeyDateString, rowKeyDatePattern);
 
-        final Date sampleBeforeAvgStartDate = getOffsetRowKeyDate(rowKeyDateString, rowKeyParts,
+        final Date sampleBeforeAvgStartDate = getOffsetRowKeyDate(sampleRowKeyDateString, sampleRowKeyParts,
                 -config.getMonotoneIncrease().getSampleBeforeAverageDateAmount());
-        final String sampleBeforeAvgStartRowKey = generateRowKey(rowKeyParts, sampleRowKey, sampleBeforeAvgStartDate);
+        final String sampleBeforeAvgStartRowKey = generateRowKey(sampleRowKeyParts, sampleBeforeAvgStartDate);
 
         StringBuilder columns = new StringBuilder();
         for (String columnName : safeList(config.getColumnNames())) {
@@ -324,130 +457,6 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
                     config.getSampleLastDatePattern());
             incrementValues.put(AVG_COUNT_KEY, count / cycles);
             return incrementValues;
-        }
-
-        return emptyMap();
-    }
-
-    /**
-     * 获取生成的累计值的上限 (fakeEndDate 之后的最小值). </br>
-     * for example:
-     * 
-     * <code>
-     * select rount(min(to_number("activePower")),4) as activePower,rount(min(to_number("reactivePower")),4) as reactivePower
-     * from "safeclound"."tb_ammeter" where "ROW">='11111277,ELE_P,134,01,202210220834' and "ROW"<='11111277,ELE_P,134,01,202210240834' limit 10;
-     * </code>
-     * 
-     * @throws ParseException
-     */
-    protected Map<String, Double> getUpperLimitFakeValues(Map<String, Object> sampleRecord) throws ParseException {
-        final String sampleRowKey = (String) sampleRecord.get(config.getRowKey().getName());
-        final Map<String, String> rowKeyParts = config.getRowKey().from(sampleRowKey);
-
-        // 从 fakeEndDate 开始向后取任意时间点作为结束时间(这里硬编码为1个周期),
-        final Date upperLimitStartDate = getOffsetDate(fakeEndDate, config.getSampleLastDatePattern(),
-                config.getSampleLastDateAmount());
-        final Date upperLimitEndDate = getOffsetDate(fakeEndDate, config.getSampleLastDatePattern(),
-                config.getSampleLastDateAmount() * 1);
-        final String upperLimitStartRowKey = generateRowKey(rowKeyParts, sampleRowKey, upperLimitStartDate);
-        final String upperLimitEndRowKey = generateRowKey(rowKeyParts, sampleRowKey, upperLimitEndDate);
-
-        StringBuilder columns = new StringBuilder();
-        for (String columnName : safeList(config.getColumnNames())) {
-            columns.append("round(min(to_number(\"");
-            columns.append(columnName);
-            columns.append("\")),4) as ");
-            columns.append(columnName);
-            columns.append(",");
-        }
-        columns.delete(columns.length() - 1, columns.length());
-
-        String queryLimitSql = format("select %s from \"%s\".\"%s\" where \"ROW\">='%s' and \"ROW\"<='%s'", columns,
-                config.getTableNamespace(), config.getTableName(), upperLimitStartRowKey, upperLimitEndRowKey);
-        log.debug("Query upperLimit sql: {}", queryLimitSql);
-
-        List<Map<String, Object>> result = safeList(jdbcTemplate.queryForList(queryLimitSql));
-        log.info("Gots upperLimit of sampleRecord: {}, result: {}", sampleRecord, result);
-
-        if (!result.isEmpty()) {
-            final Map<String, Object> resultRecord = safeMap(result.get(0));
-            return safeList(config.getColumnNames()).stream().collect(toMap(columnName -> columnName, columnName -> {
-                Object columnValue = resultRecord.get(columnName);
-                if (isNull(columnValue)) { // fix: Phoenix default to Upper
-                    columnValue = resultRecord.get(columnName.toUpperCase());
-                }
-                // 为空则表示 fakeEndDate 之后无数据, 也即无法限制生成的 fakeValue 上限制.
-                if (isNull(columnValue)) {
-                    return Double.MAX_VALUE;
-                } else if (columnValue instanceof Number) {
-                    return ((BigDecimal) columnValue).setScale(4).doubleValue();
-                }
-                log.warn("Unable parse upperLimit of sampleRecord: {}, result: {}, columnValue: {}", sampleRecord, result,
-                        columnValue);
-                return Double.MAX_VALUE;
-            }));
-        }
-
-        return emptyMap();
-    }
-
-    /**
-     * 获取生成的累计值的下限 (fakeStartDate 之前的最大值). </br>
-     * for example:
-     * 
-     * <code>
-     * select rount(max(to_number("activePower")),4) as activePower,rount(max(to_number("reactivePower")),4) as reactivePower
-     * from "safeclound"."tb_ammeter" where "ROW">='11111277,ELE_P,134,01,202210192114' and "ROW"<='11111277,ELE_P,134,01,202210220834' limit 10;
-     * </code>
-     * 
-     * @throws ParseException
-     */
-    protected Map<String, Double> getLowerLimitFakeValues(Map<String, Object> sampleRecord) throws ParseException {
-        final String sampleRowKey = (String) sampleRecord.get(config.getRowKey().getName());
-        final Map<String, String> rowKeyParts = config.getRowKey().from(sampleRowKey);
-
-        // 从 fakeStartDate 开始向前取任意时间点作为开始时间(这里硬编码为1个周期),
-        final Date lowerLimitStartDate = getOffsetDate(fakeStartDate, config.getSampleLastDatePattern(),
-                config.getSampleLastDateAmount() * -1);
-        final Date lowerLimitEndDate = getOffsetDate(fakeStartDate, config.getSampleLastDatePattern(),
-                config.getSampleLastDateAmount());
-        final String lowerLimitStartRowKey = generateRowKey(rowKeyParts, sampleRowKey, lowerLimitStartDate);
-        final String lowerLimitEndRowKey = generateRowKey(rowKeyParts, sampleRowKey, lowerLimitEndDate);
-
-        StringBuilder columns = new StringBuilder();
-        for (String columnName : safeList(config.getColumnNames())) {
-            columns.append("round(max(to_number(\"");
-            columns.append(columnName);
-            columns.append("\")),4) as ");
-            columns.append(columnName);
-            columns.append(",");
-        }
-        columns.delete(columns.length() - 1, columns.length());
-
-        String queryLimitSql = format("select %s from \"%s\".\"%s\" where \"ROW\">='%s' and \"ROW\"<='%s'", columns,
-                config.getTableNamespace(), config.getTableName(), lowerLimitStartRowKey, lowerLimitEndRowKey);
-        log.debug("Query lowerLimit sql: {}", queryLimitSql);
-
-        List<Map<String, Object>> result = safeList(jdbcTemplate.queryForList(queryLimitSql));
-        log.info("Gots lowerLimit of sampleRecord: {}, result: {}", sampleRecord, result);
-
-        if (!result.isEmpty()) {
-            final Map<String, Object> resultRecord = safeMap(result.get(0));
-            return safeList(config.getColumnNames()).stream().collect(toMap(columnName -> columnName, columnName -> {
-                Object columnValue = resultRecord.get(columnName);
-                if (isNull(columnValue)) { // fix: Phoenix default to Upper
-                    columnValue = resultRecord.get(columnName.toUpperCase());
-                }
-                // 为空则表示 fakeStartDate 之前无数据, 也即无法限制生成的 fakeValue 下限制.
-                if (isNull(columnValue)) {
-                    return Double.MIN_VALUE;
-                } else if (columnValue instanceof Number) {
-                    return ((BigDecimal) columnValue).setScale(4).doubleValue();
-                }
-                log.warn("Unable parse lowerLimit of sampleRecord: {}, result: {}, columnValue: {}", sampleRecord, result,
-                        columnValue);
-                return Double.MIN_VALUE;
-            }));
         }
 
         return emptyMap();

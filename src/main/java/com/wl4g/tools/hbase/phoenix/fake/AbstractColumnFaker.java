@@ -79,7 +79,12 @@ public abstract class AbstractColumnFaker implements InitializingBean, Disposabl
         if (!isActive()) {
             return;
         }
-        this.executor = Executors.newFixedThreadPool((config.getThreadPools() <= 1) ? 1 : config.getThreadPools());
+
+        final String prefix = getClass().getSimpleName();
+        final AtomicInteger counter = new AtomicInteger(0);
+        this.executor = Executors.newFixedThreadPool((config.getThreadPools() <= 1) ? 1 : config.getThreadPools(),
+                r -> new Thread(r, prefix.concat("-" + counter.incrementAndGet())));
+
         this.rowKeyDatePattern = config.getRowKey().getVariables().get(RowKeySpec.DATE_PATTERN_KEY).getName();
 
         // 若为省略日期写法, 则需自动补0
@@ -174,11 +179,10 @@ public abstract class AbstractColumnFaker implements InitializingBean, Disposabl
         final Map<String, String> rowKeyParts = config.getRowKey().from(sampleRowKey);
         final String rowKeyDateString = rowKeyParts.get(RowKeySpec.DATE_PATTERN_KEY);
         final Date fakeDate = getOffsetRowKeyDate(rowKeyDateString, rowKeyParts, config.getSampleLastDateAmount()); // MARK1<->MARK2
-        return generateRowKey(rowKeyParts, sampleRowKey, fakeDate);
+        return generateRowKey(rowKeyParts, fakeDate);
     }
 
-    protected String generateRowKey(final Map<String, String> rowKeyParts, final String rowKey, final Date rowDate)
-            throws ParseException {
+    protected String generateRowKey(final Map<String, String> rowKeyParts, final Date rowDate) throws ParseException {
         return config.getRowKey().to(rowKeyParts, formatDate(rowDate, rowKeyDatePattern));
     }
 
@@ -318,22 +322,22 @@ public abstract class AbstractColumnFaker implements InitializingBean, Disposabl
 
     private SqlLogFileWriter obtainSqlLogFileWriter(String rowKey) throws IOException {
         final Map<String, String> sampleStartRowKeyParts = config.getRowKey().from(rowKey);
-        final String undoSqlKey = safeMap(sampleStartRowKeyParts).entrySet()
+        final String sqlLogKey = safeMap(sampleStartRowKeyParts).entrySet()
                 .stream()
                 .filter(e -> !eqIgnCase(e.getKey(), RowKeySpec.DATE_PATTERN_KEY))
                 .map(e -> e.getValue())
                 .collect(Collectors.joining("-"));
 
-        SqlLogFileWriter sqlLogWriter = sqlLogFileWriters.get(undoSqlKey);
+        SqlLogFileWriter sqlLogWriter = sqlLogFileWriters.get(sqlLogKey);
         if (isNull(sqlLogWriter)) {
             synchronized (this) {
-                sqlLogWriter = sqlLogFileWriters.get(undoSqlKey);
+                sqlLogWriter = sqlLogFileWriters.get(sqlLogKey);
                 if (isNull(sqlLogWriter)) {
                     final BufferedWriter undoSqlWriter = new BufferedWriter(
-                            new FileWriter(new File(config.getUndoSqlDir(), undoSqlKey.concat(".sql"))));
+                            new FileWriter(new File(config.getUndoSqlDir(), sqlLogKey.concat(".sql"))));
                     final BufferedWriter redoSqlWriter = new BufferedWriter(
-                            new FileWriter(new File(config.getRedoSqlDir(), undoSqlKey.concat(".sql"))));
-                    sqlLogFileWriters.put(undoSqlKey,
+                            new FileWriter(new File(config.getRedoSqlDir(), sqlLogKey.concat(".sql"))));
+                    sqlLogFileWriters.put(sqlLogKey,
                             sqlLogWriter = new SqlLogFileWriter(undoSqlWriter, redoSqlWriter, new AtomicLong(0), 0L));
                 }
             }

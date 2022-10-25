@@ -49,8 +49,8 @@ public class SimpleColumnFaker extends AbstractColumnFaker {
             try {
                 List<Map<String, Object>> sampleRecords = fetchSampleRecords(sampleStartRowKey, sampleEndRowKey);
 
-                // rowKey 中时间是递增, 无法使用 parallelStream
-                safeList(sampleRecords).stream().map(sampleRecord -> {
+                // 非递增要求, 可使用 parallelStream
+                safeList(sampleRecords).parallelStream().map(sampleRecord -> {
                     Map<String, Object> newRecord = new HashMap<>();
                     try {
                         // Generate random fake new record.

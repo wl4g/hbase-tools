@@ -10,6 +10,8 @@
 
 spring:
   application.name: phoenix-table-fixtools
+  banner:
+      location: classpath:META-INF/banner.txt
   datasource:
     driver-class-name: org.apache.phoenix.jdbc.PhoenixDriver
     url: ${TOOL_DB_URI:jdbc:phoenix:localhost:2181}

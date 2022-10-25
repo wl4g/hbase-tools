@@ -62,7 +62,7 @@ import lombok.extern.slf4j.Slf4j;
  * @see https://www.baeldung.com/apache-commons-csv
  */
 @Slf4j
-public abstract class AbstractFaker implements InitializingBean, DisposableBean, ApplicationRunner {
+public abstract class AbstractColumnFaker implements InitializingBean, DisposableBean, ApplicationRunner {
 
     protected @Autowired PhoenixFakeProperties config;
     protected @Autowired JdbcTemplate jdbcTemplate;
@@ -307,7 +307,7 @@ public abstract class AbstractFaker implements InitializingBean, DisposableBean,
     }
 
     public static enum FakeProvider {
-        SIMPLE, CUMULATIVE;
+        SIMPLE, MONOTONE_INCREASE;
     }
 
     @Getter

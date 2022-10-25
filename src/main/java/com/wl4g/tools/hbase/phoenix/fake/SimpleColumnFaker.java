@@ -26,7 +26,7 @@ import lombok.extern.slf4j.Slf4j;
  * @see https://www.baeldung.com/apache-commons-csv
  */
 @Slf4j
-public class SimpleColumnsFaker extends AbstractFaker {
+public class SimpleColumnFaker extends AbstractColumnFaker {
 
     @Override
     protected FakeProvider provider() {

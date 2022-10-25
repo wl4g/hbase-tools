@@ -31,7 +31,7 @@ import javax.validation.constraints.Min;
 import org.springframework.beans.factory.InitializingBean;
 
 import com.wl4g.infra.common.io.FileIOUtils;
-import com.wl4g.tools.hbase.phoenix.fake.AbstractFaker.FakeProvider;
+import com.wl4g.tools.hbase.phoenix.fake.AbstractColumnFaker.FakeProvider;
 import com.wl4g.tools.hbase.phoenix.util.RowKeySpec;
 
 import lombok.AccessLevel;
@@ -107,9 +107,9 @@ public class PhoenixFakeProperties implements InitializingBean {
 
     private SimpleColumnFakerConfig simple = new SimpleColumnFakerConfig();
 
-    private CumulativeColumnFakerConfig cumulative = new CumulativeColumnFakerConfig();
+    private MonotoneIncreaseColumnFakerConfig monotoneIncrease = new MonotoneIncreaseColumnFakerConfig();
 
-    private FakeProvider provider = FakeProvider.CUMULATIVE;
+    private FakeProvider provider = FakeProvider.MONOTONE_INCREASE;
 
     private transient @Setter(AccessLevel.NONE) File undoSqlDir;
 
@@ -132,7 +132,7 @@ public class PhoenixFakeProperties implements InitializingBean {
     @Getter
     @Setter
     @ToString
-    public static class CumulativeColumnFakerConfig {
+    public static class MonotoneIncreaseColumnFakerConfig {
 
         /**
          * 时间量: 基于过去一段时长(3d)的平均值, 使用那种"时间刻度"参考:

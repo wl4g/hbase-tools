@@ -35,11 +35,11 @@ import lombok.extern.slf4j.Slf4j;
  * @see https://www.baeldung.com/apache-commons-csv
  */
 @Slf4j
-public class CumulativeColumnsFaker extends AbstractFaker {
+public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
 
     @Override
     protected FakeProvider provider() {
-        return FakeProvider.CUMULATIVE;
+        return FakeProvider.MONOTONE_INCREASE;
     }
 
     @Override
@@ -273,7 +273,7 @@ public class CumulativeColumnsFaker extends AbstractFaker {
         final Date sampleBeforeAvgEndDate = DateUtils2.parseDate(rowKeyDateString, rowKeyDatePattern);
 
         final Date sampleBeforeAvgStartDate = getOffsetRowKeyDate(rowKeyDateString, rowKeyParts,
-                -config.getCumulative().getSampleBeforeAverageDateAmount());
+                -config.getMonotoneIncrease().getSampleBeforeAverageDateAmount());
         final String sampleBeforeAvgStartRowKey = generateRowKey(rowKeyParts, sampleRowKey, sampleBeforeAvgStartDate);
 
         StringBuilder columns = new StringBuilder();
@@ -283,7 +283,7 @@ public class CumulativeColumnsFaker extends AbstractFaker {
             columns.append("\"))-min(to_number(\"");
             columns.append(columnName);
             columns.append("\")))/");
-            columns.append(Math.abs(config.getCumulative().getSampleBeforeAverageDateAmount()));
+            columns.append(Math.abs(config.getMonotoneIncrease().getSampleBeforeAverageDateAmount()));
             columns.append(",4) as ");
             columns.append(columnName);
             columns.append(",");

@@ -52,8 +52,8 @@ java -jar phoenix-fake-1.0.0-bin.jar \
 --fake.valueMaxRandomPercent=1.0987 \
 --fake.columnNames[0]=activePower \
 --fake.columnNames[1]=reactivePower \
---fake.cumulative.sampleBeforeAverageDateAmount=3 \
---fake.provider=CUMULATIVE
+--fake.monotoneIncrease.sampleBeforeAverageDateAmount=3 \
+--fake.provider=MONOTONE_INCREASE
 ```
 
 - Filter real-time log tricks examples:
@@ -70,9 +70,9 @@ java -jar phoenix-fake-1.0.0-bin.jar | grep Processed
 
 - `--fake.workspaceDir`: directory of the workspace, default is: `${HOME}/.phoenix-fake-tool/`.
 
-- `--fake.undoSQLStageFlushOnBatch`: How many batch count to undo buffered writes to SQL to disk every. default is: `${HOME}/.phoenix-fake-tool/`.
+- `--fake.undoSQLStageFlushOnBatch`: How many batch count to undo buffered writes to SQL to disk every. default is: `1024`.
 
-- `--fake.undoSQLStageFlushOnSeconds`: How many seconds to undo buffered writes to SQL to disk every. default is: `${HOME}/.phoenix-fake-tool/`.
+- `--fake.undoSQLStageFlushOnSeconds`: How many seconds to undo buffered writes to SQL to disk every. default is: `2`.
 
 - `--fake.dryRun`: The specifies whether it is a test run mode, that is, it will not actually write to the Phoenix table, the default is: `true`.
 
@@ -86,8 +86,8 @@ java -jar phoenix-fake-1.0.0-bin.jar | grep Processed
 
 - `--fake.valueMinRandomPercent|valueMaxRandomPercent`: When using Cumulative Fake (i.e. incrementing) to generate fake data, the minimum and maximum random percentages should be `>1`, conversely, if the generate fake data does not need to be incremented, the minimum random percentage can be `<1`.
 
-- `--fake.provider=CUMULATIVE|SIMPLE`: The setup fake provider, The `CUMLAUTIVE` algorithm is
-based on the average value of the first `--fake.cumulative.sampleBeforeAverageDateAmount` cycles multiplied by a random factor, and then accumulated, default is: `3`; `SIMPLE` provider calculation is historical value * random number.
+- `--fake.provider=MONOTONE_INCREASE|SIMPLE`: The setup fake provider, The `MONOTONE_INCREASE` algorithm is
+based on the average value of the first `--fake.monotoneIncrease.sampleBeforeAverageDateAmount` cycles multiplied by a random factor, and then accumulated, default is: `3`; `SIMPLE` provider calculation is historical value * random number.
 
 ## Developer guide
 

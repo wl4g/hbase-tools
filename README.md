@@ -20,9 +20,13 @@ SELECT
 FROM
     ed_equipmentinfo e
     INNER JOIN ed_customer c ON c.customerId = e.customerId
-    LEFT JOIN ed_equiptemplate t ON t.templateId = e.templateId 
+    INNER JOIN ed_equiptemplate t ON t.templateId = e.templateId 
 WHERE
-    c.customerName LIKE '%佛山市xxx印染%' 
+    e.workingStatus = 1
+    AND e.`status` = 0
+    AND c.isEnabled = 0
+    AND t.`status` = 0
+    AND c.customerName LIKE '%佛山市xxx印染%'
     AND e.addrIP IS NOT NULL 
     AND e.addrIPOrder > 0
 ```

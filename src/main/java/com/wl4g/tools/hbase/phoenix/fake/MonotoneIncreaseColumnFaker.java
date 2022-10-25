@@ -344,11 +344,11 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
         final String sampleRowKey = (String) sampleRecord.get(config.getRowKey().getName());
         final Map<String, String> rowKeyParts = config.getRowKey().from(sampleRowKey);
 
-        // 从 fakeEndDate 开始向后取任意时间点作为结束时间(这里硬编码为2个周期),
+        // 从 fakeEndDate 开始向后取任意时间点作为结束时间(这里硬编码为1个周期),
         final Date upperLimitStartDate = getOffsetDate(fakeEndDate, config.getSampleLastDatePattern(),
                 config.getSampleLastDateAmount());
         final Date upperLimitEndDate = getOffsetDate(fakeEndDate, config.getSampleLastDatePattern(),
-                config.getSampleLastDateAmount() * 2);
+                config.getSampleLastDateAmount() * 1);
         final String upperLimitStartRowKey = generateRowKey(rowKeyParts, sampleRowKey, upperLimitStartDate);
         final String upperLimitEndRowKey = generateRowKey(rowKeyParts, sampleRowKey, upperLimitEndDate);
 
@@ -406,10 +406,10 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
         final String sampleRowKey = (String) sampleRecord.get(config.getRowKey().getName());
         final Map<String, String> rowKeyParts = config.getRowKey().from(sampleRowKey);
 
-        // 从 fakeStartDate 开始向前取任意时间点作为开始时间(这里硬编码为2个周期),
-        final Date lowerLimitStartDate = getOffsetDate(fakeEndDate, config.getSampleLastDatePattern(),
-                config.getSampleLastDateAmount() * -2);
-        final Date lowerLimitEndDate = getOffsetDate(fakeEndDate, config.getSampleLastDatePattern(),
+        // 从 fakeStartDate 开始向前取任意时间点作为开始时间(这里硬编码为1个周期),
+        final Date lowerLimitStartDate = getOffsetDate(fakeStartDate, config.getSampleLastDatePattern(),
+                config.getSampleLastDateAmount() * -1);
+        final Date lowerLimitEndDate = getOffsetDate(fakeStartDate, config.getSampleLastDatePattern(),
                 config.getSampleLastDateAmount());
         final String lowerLimitStartRowKey = generateRowKey(rowKeyParts, sampleRowKey, lowerLimitStartDate);
         final String lowerLimitEndRowKey = generateRowKey(rowKeyParts, sampleRowKey, lowerLimitEndDate);

@@ -31,6 +31,10 @@ spring:
 logging:
   file:
     name: /var/log/${spring.application.name}_${spring.profiles.active}.log
+    clean-history-on-start: false # By default: false
+    total-size-cap: 50GB
+    max-size: 1GB
+    max-history: 10
   root: INFO
   level:
     org:

@@ -29,7 +29,7 @@ spring:
     default-auto-commit: true
 
 logging:
-  file: /var/log/${spring.application.name}/${spring.application.name}_${spring.profiles.active}.log
+  file: /var/log/${spring.application.name}_${spring.profiles.active}.log
   root: INFO
   level:
     org:

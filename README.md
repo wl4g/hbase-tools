@@ -32,7 +32,7 @@ WHERE
 ```bash
 java -jar phoenix-fake-1.0.0-bin.jar \
 --spring.datasource.url=jdbc:phoenix:localhost:2181 \
---fake.workspaceDir=~/.phoenix-fake-tool/ \
+--fake.workspaceDir=${HOME}/.phoenix-fake-tool/ \
 --fake.undoSQLStageFlushOnCount=1024 \
 --fake.undoSQLStageFlushOnSeconds=2 \
 --fake.tableNamespace=safeclound \

@@ -91,9 +91,9 @@ public class PhoenixFakeProperties implements InitializingBean {
 
     // 注: 当使用 Cumulative Fake(即递增) 模拟数据时, 最小和最大随机百分比应该 >1
     // 反之, 如果生成模拟数据无需递增, 则最小随机百分比可以 <1
-    private double valueMinRandomPercent = 1.0124;
+    private double valueMinRandomPercent = 0.9876;
 
-    private double valueMaxRandomPercent = 1.0987;
+    private double valueMaxRandomPercent = 1.0124;
 
     private List<String> columnNames = new ArrayList<String>() {
         private static final long serialVersionUID = 1L;

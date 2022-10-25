@@ -48,8 +48,8 @@ java -jar phoenix-fake-1.0.0-bin.jar \
 --fake.endDate=202210220835 \
 --fake.sampleLastDatePattern=dd \
 --fake.sampleLastDateAmount=1 \
---fake.valueMinRandomPercent=1.0124 \
---fake.valueMaxRandomPercent=1.0987 \
+--fake.valueMinRandomPercent=0.9876 \
+--fake.valueMaxRandomPercent=1.0124 \
 --fake.columnNames[0]=activePower \
 --fake.columnNames[1]=reactivePower \
 --fake.monotoneIncrease.sampleBeforeAverageDateAmount=3 \

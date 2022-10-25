@@ -58,8 +58,8 @@ fake:
   #endDate: formatDate(new Date(), "yyyyMMddHH")
   sampleLastDatePattern: dd
   sampleLastDateAmount: 1
-  valueMinRandomPercent: 1.0124
-  valueMaxRandomPercent: 1.0987
+  valueMinRandomPercent: 0.9876
+  valueMaxRandomPercent: 1.0124
   provider: MONOTONE_INCREASE ## SIMPLE|CUMULATIVE
   columnNames:
     - activePower

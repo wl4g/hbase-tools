@@ -68,7 +68,7 @@ java -jar phoenix-fake-1.0.0-bin.jar | grep Processed
 
 ## Configuration
 
-- `--fake.workspaceDir`: directory of the workspace, default is: `${HOME}/.phoenix-fake-tool/`.
+- `--fake.workspaceDir`: The directory of the workspace, default is: `${HOME}/.phoenix-fake-tool/`. Default metadata file: `{workspaceDir}/meta.csv`, undo SQL dir: `{workspaceDir}/undo-{timestamp}/`
 
 - `--fake.undoSQLStageFlushOnBatch`: How many batch count to undo buffered writes to SQL to disk every. default is: `1024`.
 

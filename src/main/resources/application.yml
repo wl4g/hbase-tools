@@ -37,7 +37,9 @@ logging:
       apache: INFO
 
 fake:
-  #metaCsvFile: ~/.phoenix-fixtool/meta.csv
+  #workspaceDir: ~/.phoenix-fixtool/
+  undoSQLStageFlushOnCount: 1024
+  undoSQLStageFlushOnSeconds: 2
   tableNamespace: safeclound
   tableName: tb_ammeter
   randomMinOffsetPercent: 0.8976
@@ -56,7 +58,7 @@ fake:
   sampleLastDateAmount: 1
   valueMinRandomPercent: 1.0124
   valueMaxRandomPercent: 1.0987
-  provider: CUMULATIVE ## SIMPLE|CUMULATIVE
+  provider: MONOTONE_INCREASE ## SIMPLE|CUMULATIVE
   columnNames:
     - activePower
     - reactivePower

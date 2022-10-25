@@ -16,6 +16,7 @@
 package com.wl4g.tools.hbase.phoenix.config;
 
 import static com.wl4g.infra.common.lang.DateUtils2.formatDate;
+import static java.lang.System.currentTimeMillis;
 import static org.apache.commons.lang3.SystemUtils.USER_HOME;
 import static org.apache.commons.lang3.time.DateUtils.addDays;
 
@@ -33,6 +34,7 @@ import com.wl4g.infra.common.io.FileIOUtils;
 import com.wl4g.tools.hbase.phoenix.fake.AbstractFaker.FakeProvider;
 import com.wl4g.tools.hbase.phoenix.util.RowKeySpec;
 
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -51,7 +53,7 @@ import lombok.ToString;
 @NoArgsConstructor
 public class PhoenixFakeProperties implements InitializingBean {
 
-    private File metaCsvFile = new File(USER_HOME + "/.phoenix-fake-tool/meta.csv");
+    private File workspaceDir = new File(USER_HOME + "/.phoenix-fake-tool/");
 
     private String tableNamespace = "safeclound";
 
@@ -105,9 +107,14 @@ public class PhoenixFakeProperties implements InitializingBean {
 
     private FakeProvider provider = FakeProvider.CUMULATIVE;
 
+    private transient @Setter(AccessLevel.NONE) File undoSqlDir;
+
     @Override
     public void afterPropertiesSet() throws Exception {
-        FileIOUtils.forceMkdirParent(metaCsvFile);
+        FileIOUtils.forceMkdirParent(workspaceDir);
+        this.undoSqlDir = new File(workspaceDir, "undo-" + currentTimeMillis());
+        FileIOUtils.forceMkdir(undoSqlDir);
+
         // Ensure initialized.
         rowKey.ensureInit();
     }

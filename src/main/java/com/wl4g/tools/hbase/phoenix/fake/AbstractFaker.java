@@ -3,7 +3,9 @@ package com.wl4g.tools.hbase.phoenix.fake;
 import static com.wl4g.infra.common.collection.CollectionUtils2.safeList;
 import static com.wl4g.infra.common.collection.CollectionUtils2.safeMap;
 import static com.wl4g.infra.common.lang.DateUtils2.formatDate;
+import static com.wl4g.infra.common.lang.StringUtils2.eqIgnCase;
 import static java.lang.String.format;
+import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
 import static org.apache.commons.lang3.time.DateUtils.addDays;
 import static org.apache.commons.lang3.time.DateUtils.addHours;
@@ -13,16 +15,23 @@ import static org.apache.commons.lang3.time.DateUtils.addSeconds;
 import static org.apache.commons.lang3.time.DateUtils.addYears;
 import static org.apache.commons.lang3.time.DateUtils.parseDate;
 
+import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.io.Reader;
 import java.text.ParseException;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
@@ -37,6 +46,10 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import com.wl4g.tools.hbase.phoenix.config.PhoenixFakeProperties;
 import com.wl4g.tools.hbase.phoenix.util.RowKeySpec;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -58,6 +71,7 @@ public abstract class AbstractFaker implements InitializingBean, DisposableBean,
     protected String rowKeyDatePattern;
     protected Date fakeStartDate;
     protected Date fakeEndDate;
+    protected Map<String, UndoSQLWriter> undoWriters = new ConcurrentHashMap<>(1024);
 
     @Override
     public void afterPropertiesSet() throws Exception {
@@ -86,6 +100,16 @@ public abstract class AbstractFaker implements InitializingBean, DisposableBean,
             return;
         }
         log.info("Processed all completed of {}/{}", completedOfAll.get(), totalOfAll.get());
+
+        safeMap(undoWriters).forEach((key, undoWriter) -> {
+            try {
+                if (nonNull(undoWriter.getWriter())) {
+                    undoWriter.getWriter().close();
+                }
+            } catch (Exception e) {
+                log.error(format("Unable to closing undo writer for '%s'", key), e);
+            }
+        });
         executor.shutdown();
     }
 
@@ -103,12 +127,13 @@ public abstract class AbstractFaker implements InitializingBean, DisposableBean,
         // see: https://www.baeldung.com/apache-commons-csv
         log.info("Loading metadata from csv ...");
 
-        Reader in = new FileReader(config.getMetaCsvFile());
+        Reader in = new FileReader(new File(config.getWorkspaceDir(), "meta.csv"));
         CSVParser metaRecords = CSVFormat.DEFAULT.withHeader().withSkipHeaderRecord().parse(in);
         if (nonNull(metaRecords)) {
             for (CSVRecord record : metaRecords) {
                 log.info("Processing meta record : {}", record);
 
+                // Make sample start/end rowKey.
                 final String sampleStartDateString = formatDate(
                         getOffsetDate(fakeStartDate, config.getSampleLastDatePattern(), -config.getSampleLastDateAmount()), // MARK1<->MARK2
                         rowKeyDatePattern);
@@ -118,6 +143,7 @@ public abstract class AbstractFaker implements InitializingBean, DisposableBean,
                 final String sampleStartRowKey = config.getRowKey().to(safeMap(record.toMap()), sampleStartDateString);
                 final String sampleEndRowKey = config.getRowKey().to(safeMap(record.toMap()), sampleEndDateString);
 
+                // Execution
                 executor.submit(newProcessTask(sampleStartRowKey, sampleEndRowKey));
             }
             log.info("Waiting for running completion with {}sec ...", config.getAwaitSeconds());
@@ -191,8 +217,8 @@ public abstract class AbstractFaker implements InitializingBean, DisposableBean,
         return date;
     }
 
+    // Save to HBase table.
     protected void writeToHTable(Map<String, Object> newRecord) {
-        // Save to HBase to table.
         try {
             StringBuilder upsertSql = new StringBuilder(
                     format("upsert into \"%s\".\"%s\" (", config.getTableNamespace(), config.getTableName()));
@@ -216,6 +242,9 @@ public abstract class AbstractFaker implements InitializingBean, DisposableBean,
                 jdbcTemplate.execute(upsertSql.toString());
             }
 
+            // Save undo SQL to workspace files.
+            writeToUndoSql(newRecord);
+
             completedOfAll.incrementAndGet();
         } catch (Exception e) {
             if (config.isErrorContinue()) {
@@ -226,8 +255,64 @@ public abstract class AbstractFaker implements InitializingBean, DisposableBean,
         }
     }
 
+    protected void writeToUndoSql(Map<String, Object> newRecord) {
+        try {
+            String newRowKey = (String) newRecord.get(config.getRowKey().getName());
+            UndoSQLWriter undoWriter = obtainUndoWriter(newRowKey);
+
+            String undoSql = format("delete from \"%s\".\"%s\" where \"%s\"='%s';", config.getTableNamespace(),
+                    config.getTableName(), config.getRowKey().getName(), newRowKey);
+            log.info("Undo sql: {}", undoSql);
+
+            undoWriter.getWriter().append(undoSql);
+            undoWriter.getWriter().newLine();
+
+            if (undoWriter.getBuffers().incrementAndGet() % 1024 == 0) {
+                undoWriter.getWriter().flush();
+            }
+        } catch (Exception e) {
+            if (config.isErrorContinue()) {
+                log.warn(format("Unable write to undo sql of : %s", newRecord), e);
+            } else {
+                throw new IllegalStateException(e);
+            }
+        }
+    }
+
+    private UndoSQLWriter obtainUndoWriter(String rowKey) throws IOException {
+        final Map<String, String> sampleStartRowKeyParts = config.getRowKey().from(rowKey);
+        final String undoSqlKey = safeMap(sampleStartRowKeyParts).entrySet()
+                .stream()
+                .filter(e -> !eqIgnCase(e.getKey(), RowKeySpec.DATE_PATTERN_KEY))
+                .map(e -> e.getValue())
+                .collect(Collectors.joining("-"));
+
+        UndoSQLWriter undoWriter = undoWriters.get(undoSqlKey);
+        if (isNull(undoWriter)) {
+            synchronized (this) {
+                undoWriter = undoWriters.get(undoSqlKey);
+                if (isNull(undoWriter)) {
+                    final BufferedWriter writer = new BufferedWriter(
+                            new FileWriter(new File(config.getUndoSqlDir(), undoSqlKey.concat(".sql"))));
+                    undoWriters.put(undoSqlKey, undoWriter = new UndoSQLWriter(writer, new AtomicLong(0)));
+                }
+            }
+        }
+
+        return undoWriter;
+    }
+
     public static enum FakeProvider {
         SIMPLE, CUMULATIVE;
+    }
+
+    @Getter
+    @Setter
+    @ToString
+    @AllArgsConstructor
+    public static class UndoSQLWriter {
+        private BufferedWriter writer;
+        private AtomicLong buffers;
     }
 
 }

@@ -32,6 +32,7 @@ WHERE
 ```bash
 java -jar phoenix-fake-1.0.0-bin.jar \
 --spring.datasource.url=jdbc:phoenix:localhost:2181 \
+--fake.workspaceDir=~/.phoenix-fake-tool/ \
 --fake.tableNamespace=safeclound \
 --fake.tableName=tb_ammeter \
 --fake.dryRun=true \

@@ -33,7 +33,6 @@ import static org.apache.commons.lang3.StringUtils.split;
 import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -124,7 +123,7 @@ public class RowKeySpec {
         ensureInit();
 
         // 模版变量与分隔符错位拼接(注:分隔符先开始,且数量相等)
-        Map<String, String> parts = new HashMap<>();
+        Map<String, String> parts = new LinkedHashMap<>();
         List<PartVariable> _variables = safeList(safeMap(variables).values());
         String decrement = rowKey;
         for (int i = 0; i < delimiters.size(); i++) {

@@ -55,6 +55,10 @@ public class PhoenixFakeProperties implements InitializingBean {
 
     private File workspaceDir = new File(USER_HOME + "/.phoenix-fake-tool/");
 
+    private int undoSQLStageFlushOnBatch = 1024;
+
+    private int undoSQLStageFlushOnSeconds = 2;
+
     private String tableNamespace = "safeclound";
 
     private String tableName = "tb_ammeter";

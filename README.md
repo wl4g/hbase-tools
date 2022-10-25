@@ -33,6 +33,8 @@ WHERE
 java -jar phoenix-fake-1.0.0-bin.jar \
 --spring.datasource.url=jdbc:phoenix:localhost:2181 \
 --fake.workspaceDir=~/.phoenix-fake-tool/ \
+--fake.undoSQLStageFlushOnCount=1024 \
+--fake.undoSQLStageFlushOnSeconds=2 \
 --fake.tableNamespace=safeclound \
 --fake.tableName=tb_ammeter \
 --fake.dryRun=true \
@@ -65,6 +67,12 @@ java -jar phoenix-fake-1.0.0-bin.jar | grep Processed
 ```
 
 ## Configuration
+
+- `--fake.workspaceDir`: directory of the workspace, default is: `${HOME}/.phoenix-fake-tool/`.
+
+- `--fake.undoSQLStageFlushOnBatch`: How many batch count to undo buffered writes to SQL to disk every. default is: `${HOME}/.phoenix-fake-tool/`.
+
+- `--fake.undoSQLStageFlushOnSeconds`: How many seconds to undo buffered writes to SQL to disk every. default is: `${HOME}/.phoenix-fake-tool/`.
 
 - `--fake.dryRun`: The specifies whether it is a test run mode, that is, it will not actually write to the Phoenix table, the default is: `true`.
 

@@ -5,6 +5,7 @@ import static com.wl4g.infra.common.collection.CollectionUtils2.safeMap;
 import static com.wl4g.infra.common.lang.DateUtils2.formatDate;
 import static com.wl4g.infra.common.lang.StringUtils2.eqIgnCase;
 import static java.lang.String.format;
+import static java.lang.System.currentTimeMillis;
 import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
 import static org.apache.commons.lang3.time.DateUtils.addDays;
@@ -267,8 +268,11 @@ public abstract class AbstractFaker implements InitializingBean, DisposableBean,
             undoWriter.getWriter().append(undoSql);
             undoWriter.getWriter().newLine();
 
-            if (undoWriter.getBuffers().incrementAndGet() % 1024 == 0) {
+            final long now = currentTimeMillis();
+            if (undoWriter.getBuffers().incrementAndGet() % config.getUndoSQLStageFlushOnBatch() == 0
+                    || ((now - undoWriter.getLastFlushTime()) >= config.getUndoSQLStageFlushOnSeconds())) {
                 undoWriter.getWriter().flush();
+                undoWriter.setLastFlushTime(now);
             }
         } catch (Exception e) {
             if (config.isErrorContinue()) {
@@ -294,7 +298,7 @@ public abstract class AbstractFaker implements InitializingBean, DisposableBean,
                 if (isNull(undoWriter)) {
                     final BufferedWriter writer = new BufferedWriter(
                             new FileWriter(new File(config.getUndoSqlDir(), undoSqlKey.concat(".sql"))));
-                    undoWriters.put(undoSqlKey, undoWriter = new UndoSQLWriter(writer, new AtomicLong(0)));
+                    undoWriters.put(undoSqlKey, undoWriter = new UndoSQLWriter(writer, new AtomicLong(0), 0L));
                 }
             }
         }
@@ -313,6 +317,7 @@ public abstract class AbstractFaker implements InitializingBean, DisposableBean,
     public static class UndoSQLWriter {
         private BufferedWriter writer;
         private AtomicLong buffers;
+        private long lastFlushTime;
     }
 
 }

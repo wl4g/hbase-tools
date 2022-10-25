@@ -136,26 +136,10 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
                 value = parseDouble((String) valueObj);
                 return generateFakeValue(columnName, sampleRecord, incrementCount, incrementValue, upperLimitValue,
                         lowerLimitValue, value).toPlainString();
-            } else if (valueObj instanceof Integer) {
-                value = (Integer) valueObj;
+            } else if (valueObj instanceof Number) {
+                value = ((Number) valueObj).doubleValue();
                 return generateFakeValue(columnName, sampleRecord, incrementCount, incrementValue, upperLimitValue,
                         lowerLimitValue, value).intValue();
-            } else if (valueObj instanceof Long) {
-                value = (Long) valueObj;
-                return generateFakeValue(columnName, sampleRecord, incrementCount, incrementValue, upperLimitValue,
-                        lowerLimitValue, value).longValue();
-            } else if (valueObj instanceof Float) {
-                value = (Float) valueObj;
-                return generateFakeValue(columnName, sampleRecord, incrementCount, incrementValue, upperLimitValue,
-                        lowerLimitValue, value).floatValue();
-            } else if (valueObj instanceof Double) {
-                value = (Double) valueObj;
-                return generateFakeValue(columnName, sampleRecord, incrementCount, incrementValue, upperLimitValue,
-                        lowerLimitValue, value).doubleValue();
-            } else if (valueObj instanceof BigDecimal) {
-                value = ((BigDecimal) valueObj).doubleValue();
-                return generateFakeValue(columnName, sampleRecord, incrementCount, incrementValue, upperLimitValue,
-                        lowerLimitValue, value);
             }
             return value;
         }
@@ -389,7 +373,14 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
                     columnValue = resultRecord.get(columnName.toUpperCase());
                 }
                 // 为空则表示 fakeEndDate 之后无数据, 也即无法限制生成的 fakeValue 上限制.
-                return isNull(columnValue) ? Double.MAX_VALUE : ((Double) columnValue);
+                if (isNull(columnValue)) {
+                    return Double.MAX_VALUE;
+                } else if (columnValue instanceof Number) {
+                    return ((BigDecimal) columnValue).doubleValue();
+                }
+                log.warn("Unable parse upperLimit of sampleRecord: {}, result: {}, columnValue: {}", sampleRecord, result,
+                        columnValue);
+                return Double.MAX_VALUE;
             }));
         }
 
@@ -444,7 +435,14 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
                     columnValue = resultRecord.get(columnName.toUpperCase());
                 }
                 // 为空则表示 fakeStartDate 之前无数据, 也即无法限制生成的 fakeValue 下限制.
-                return isNull(columnValue) ? Double.MIN_VALUE : ((Double) columnValue);
+                if (isNull(columnValue)) {
+                    return Double.MIN_VALUE;
+                } else if (columnValue instanceof Number) {
+                    return ((BigDecimal) columnValue).doubleValue();
+                }
+                log.warn("Unable parse lowerLimit of sampleRecord: {}, result: {}, columnValue: {}", sampleRecord, result,
+                        columnValue);
+                return Double.MIN_VALUE;
             }));
         }
 

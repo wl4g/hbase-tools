@@ -241,10 +241,10 @@ public abstract class AbstractColumnFaker implements InitializingBean, Disposabl
             log.info("Executing: {}", upsertSql);
             if (!config.isDryRun()) {
                 jdbcTemplate.execute(upsertSql.toString());
-            }
 
-            // Save undo SQL to workspace files.
-            writeToUndoSql(newRecord);
+                // Save undo SQL to workspace files.
+                writeToUndoSql(newRecord);
+            }
 
             completedOfAll.incrementAndGet();
         } catch (Exception e) {

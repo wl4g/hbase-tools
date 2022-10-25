@@ -55,9 +55,9 @@ public class PhoenixFakeProperties implements InitializingBean {
 
     private File workspaceDir = new File(USER_HOME + "/.phoenix-fake-tool/");
 
-    private int undoSQLStageFlushOnBatch = 1024;
+    private int writeSqlLogFileFlushOnBatch = 1024;
 
-    private int undoSQLStageFlushOnSeconds = 2;
+    private int writeSqlLogFlushOnSeconds = 2;
 
     private String tableNamespace = "safeclound";
 
@@ -112,12 +112,17 @@ public class PhoenixFakeProperties implements InitializingBean {
     private FakeProvider provider = FakeProvider.MONOTONE_INCREASE;
 
     private transient @Setter(AccessLevel.NONE) File undoSqlDir;
+    private transient @Setter(AccessLevel.NONE) File redoSqlDir;
 
     @Override
     public void afterPropertiesSet() throws Exception {
         FileIOUtils.forceMkdirParent(workspaceDir);
+
         this.undoSqlDir = new File(workspaceDir, "undo-" + currentTimeMillis());
         FileIOUtils.forceMkdir(undoSqlDir);
+
+        this.redoSqlDir = new File(workspaceDir, "redo-" + currentTimeMillis());
+        FileIOUtils.forceMkdir(redoSqlDir);
 
         // Ensure initialized.
         rowKey.ensureInit();

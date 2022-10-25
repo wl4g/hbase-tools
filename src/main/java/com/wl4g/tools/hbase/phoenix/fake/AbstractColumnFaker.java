@@ -72,7 +72,7 @@ public abstract class AbstractColumnFaker implements InitializingBean, Disposabl
     protected String rowKeyDatePattern;
     protected Date fakeStartDate;
     protected Date fakeEndDate;
-    protected Map<String, UndoSQLWriter> undoWriters = new ConcurrentHashMap<>(1024);
+    protected Map<String, SqlLogFileWriter> sqlLogFileWriters = new ConcurrentHashMap<>(1024);
 
     @Override
     public void afterPropertiesSet() throws Exception {
@@ -102,13 +102,20 @@ public abstract class AbstractColumnFaker implements InitializingBean, Disposabl
         }
         log.info("Processed all completed of {}/{}", completedOfAll.get(), totalOfAll.get());
 
-        safeMap(undoWriters).forEach((key, undoWriter) -> {
+        safeMap(sqlLogFileWriters).forEach((key, sqlLogWriter) -> {
             try {
-                if (nonNull(undoWriter.getWriter())) {
-                    undoWriter.getWriter().close();
+                if (nonNull(sqlLogWriter.getUndoSqlWriter())) {
+                    sqlLogWriter.getUndoSqlWriter().close();
                 }
             } catch (Exception e) {
                 log.error(format("Unable to closing undo writer for '%s'", key), e);
+            }
+            try {
+                if (nonNull(sqlLogWriter.getRedoSqlWriter())) {
+                    sqlLogWriter.getRedoSqlWriter().close();
+                }
+            } catch (Exception e) {
+                log.error(format("Unable to closing redo writer for '%s'", key), e);
             }
         });
         executor.shutdown();
@@ -242,10 +249,12 @@ public abstract class AbstractColumnFaker implements InitializingBean, Disposabl
             if (!config.isDryRun()) {
                 jdbcTemplate.execute(upsertSql.toString());
 
-                // Save undo SQL to workspace files.
-                writeToUndoSql(newRecord);
-            }
+                // Save redo SQL to log files.
+                writeRedoSqlLog(newRecord, upsertSql.toString());
 
+                // Save undo SQL to log files.
+                writeUndoSqlLog(newRecord);
+            }
             completedOfAll.incrementAndGet();
         } catch (Exception e) {
             if (config.isErrorContinue()) {
@@ -256,22 +265,22 @@ public abstract class AbstractColumnFaker implements InitializingBean, Disposabl
         }
     }
 
-    protected void writeToUndoSql(Map<String, Object> newRecord) {
+    protected void writeUndoSqlLog(Map<String, Object> newRecord) {
         try {
             String newRowKey = (String) newRecord.get(config.getRowKey().getName());
-            UndoSQLWriter undoWriter = obtainUndoWriter(newRowKey);
+            SqlLogFileWriter undoWriter = obtainSqlLogFileWriter(newRowKey);
 
             String undoSql = format("delete from \"%s\".\"%s\" where \"%s\"='%s';", config.getTableNamespace(),
                     config.getTableName(), config.getRowKey().getName(), newRowKey);
             log.debug("Undo sql: {}", undoSql);
 
-            undoWriter.getWriter().append(undoSql);
-            undoWriter.getWriter().newLine();
+            undoWriter.getUndoSqlWriter().append(undoSql);
+            undoWriter.getUndoSqlWriter().newLine();
 
             final long now = currentTimeMillis();
-            if (undoWriter.getBuffers().incrementAndGet() % config.getUndoSQLStageFlushOnBatch() == 0
-                    || ((now - undoWriter.getLastFlushTime()) >= config.getUndoSQLStageFlushOnSeconds())) {
-                undoWriter.getWriter().flush();
+            if (undoWriter.getBuffers().incrementAndGet() % config.getWriteSqlLogFileFlushOnBatch() == 0
+                    || ((now - undoWriter.getLastFlushTime()) >= config.getWriteSqlLogFlushOnSeconds())) {
+                undoWriter.getUndoSqlWriter().flush();
                 undoWriter.setLastFlushTime(now);
             }
         } catch (Exception e) {
@@ -283,7 +292,31 @@ public abstract class AbstractColumnFaker implements InitializingBean, Disposabl
         }
     }
 
-    private UndoSQLWriter obtainUndoWriter(String rowKey) throws IOException {
+    protected void writeRedoSqlLog(Map<String, Object> newRecord, String redoSql) {
+        try {
+            String newRowKey = (String) newRecord.get(config.getRowKey().getName());
+            SqlLogFileWriter redoWriter = obtainSqlLogFileWriter(newRowKey);
+            log.debug("Redo sql: {}", redoSql);
+
+            redoWriter.getRedoSqlWriter().append(redoSql);
+            redoWriter.getRedoSqlWriter().newLine();
+
+            final long now = currentTimeMillis();
+            if (redoWriter.getBuffers().incrementAndGet() % config.getWriteSqlLogFileFlushOnBatch() == 0
+                    || ((now - redoWriter.getLastFlushTime()) >= config.getWriteSqlLogFlushOnSeconds())) {
+                redoWriter.getRedoSqlWriter().flush();
+                redoWriter.setLastFlushTime(now);
+            }
+        } catch (Exception e) {
+            if (config.isErrorContinue()) {
+                log.warn(format("Unable write to undo sql of : %s", newRecord), e);
+            } else {
+                throw new IllegalStateException(e);
+            }
+        }
+    }
+
+    private SqlLogFileWriter obtainSqlLogFileWriter(String rowKey) throws IOException {
         final Map<String, String> sampleStartRowKeyParts = config.getRowKey().from(rowKey);
         final String undoSqlKey = safeMap(sampleStartRowKeyParts).entrySet()
                 .stream()
@@ -291,19 +324,22 @@ public abstract class AbstractColumnFaker implements InitializingBean, Disposabl
                 .map(e -> e.getValue())
                 .collect(Collectors.joining("-"));
 
-        UndoSQLWriter undoWriter = undoWriters.get(undoSqlKey);
-        if (isNull(undoWriter)) {
+        SqlLogFileWriter sqlLogWriter = sqlLogFileWriters.get(undoSqlKey);
+        if (isNull(sqlLogWriter)) {
             synchronized (this) {
-                undoWriter = undoWriters.get(undoSqlKey);
-                if (isNull(undoWriter)) {
-                    final BufferedWriter writer = new BufferedWriter(
+                sqlLogWriter = sqlLogFileWriters.get(undoSqlKey);
+                if (isNull(sqlLogWriter)) {
+                    final BufferedWriter undoSqlWriter = new BufferedWriter(
                             new FileWriter(new File(config.getUndoSqlDir(), undoSqlKey.concat(".sql"))));
-                    undoWriters.put(undoSqlKey, undoWriter = new UndoSQLWriter(writer, new AtomicLong(0), 0L));
+                    final BufferedWriter redoSqlWriter = new BufferedWriter(
+                            new FileWriter(new File(config.getRedoSqlDir(), undoSqlKey.concat(".sql"))));
+                    sqlLogFileWriters.put(undoSqlKey,
+                            sqlLogWriter = new SqlLogFileWriter(undoSqlWriter, redoSqlWriter, new AtomicLong(0), 0L));
                 }
             }
         }
 
-        return undoWriter;
+        return sqlLogWriter;
     }
 
     public static enum FakeProvider {
@@ -314,8 +350,9 @@ public abstract class AbstractColumnFaker implements InitializingBean, Disposabl
     @Setter
     @ToString
     @AllArgsConstructor
-    public static class UndoSQLWriter {
-        private BufferedWriter writer;
+    public static class SqlLogFileWriter {
+        private BufferedWriter undoSqlWriter;
+        private BufferedWriter redoSqlWriter;
         private AtomicLong buffers;
         private long lastFlushTime;
     }

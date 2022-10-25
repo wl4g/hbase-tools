@@ -9,9 +9,11 @@
 #
 
 spring:
-  application.name: phoenix-table-fixtools
+  application.name: phoenix-fake-tool
+  profiles:
+    active: default
   banner:
-      location: classpath:META-INF/banner.txt
+    location: classpath:META-INF/banner.txt
   datasource:
     driver-class-name: org.apache.phoenix.jdbc.PhoenixDriver
     url: ${TOOL_DB_URI:jdbc:phoenix:localhost:2181}
@@ -28,20 +30,16 @@ spring:
 
 logging:
   file: /var/log/${spring.application.name}/${spring.application.name}_${spring.profiles.active}.log
-  policy:
-    maxFileSize: 1GB
-    minIndex: 1
-    maxIndex: 30
   root: INFO
   level:
     org:
-      springframework.jdbc.core: DEBUG
       apache: INFO
+      #springframework.jdbc.core: DEBUG
 
 fake:
   #workspaceDir: ~/.phoenix-fixtool/
-  undoSQLStageFlushOnCount: 1024
-  undoSQLStageFlushOnSeconds: 2
+  writeSqlLogFileFlushOnBatch: 1024
+  writeSqlLogFileFlushOnSeconds: 2
   tableNamespace: safeclound
   tableName: tb_ammeter
   randomMinOffsetPercent: 0.8976

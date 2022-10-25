@@ -33,8 +33,8 @@ WHERE
 java -jar phoenix-fake-1.0.0-bin.jar \
 --spring.datasource.url=jdbc:phoenix:localhost:2181 \
 --fake.workspaceDir=${HOME}/.phoenix-fake-tool/ \
---fake.undoSQLStageFlushOnCount=1024 \
---fake.undoSQLStageFlushOnSeconds=2 \
+--fake.writeSqlLogFileFlushOnBatch=1024 \
+--fake.writeSqlLogFileFlushOnSeconds=2 \
 --fake.tableNamespace=safeclound \
 --fake.tableName=tb_ammeter \
 --fake.dryRun=true \
@@ -68,11 +68,11 @@ java -jar phoenix-fake-1.0.0-bin.jar | grep Processed
 
 ## Configuration
 
-- `--fake.workspaceDir`: The directory of the workspace, default is: `${HOME}/.phoenix-fake-tool/`. Default metadata file: `{workspaceDir}/meta.csv`, undo SQL dir: `{workspaceDir}/undo-{timestamp}/`
+- `--fake.workspaceDir`: The directory of the workspace, default is: `${HOME}/.phoenix-fake-tool/`. Default metadata file: `{workspaceDir}/meta.csv`, undo SQL dir: `{workspaceDir}/undo-{timestamp}/` and `{workspaceDir}/redo-{timestamp}/`
 
-- `--fake.undoSQLStageFlushOnBatch`: How many batch count to undo buffered writes to SQL to disk every. default is: `1024`.
+- `--fake.writeSqlLogFileFlushOnBatch`: How many batch size to undo/redo sql log file buffered writes to SQL to disk every. default is: `1024`.
 
-- `--fake.undoSQLStageFlushOnSeconds`: How many seconds to undo buffered writes to SQL to disk every. default is: `2`.
+- `--fake.writeSqlLogFileFlushOnSeconds`: How many seconds to undo/redo sql log file buffered writes to SQL to disk every. default is: `2`.
 
 - `--fake.dryRun`: The specifies whether it is a test run mode, that is, it will not actually write to the Phoenix table, the default is: `true`.
 

@@ -40,7 +40,7 @@ java -jar phoenix-fake-1.0.0-bin.jar \
 --fake.dryRun=true \
 --fake.threadPools=1 \
 --fake.maxLimit=14400 \
---fake.errorContinue=false \
+--fake.errorContinue=true \
 --fake.awaitSeconds=1800 \
 --fake.rowKey.name=ROW \
 --fake.rowKey.template="{text:addrIP:},ELE_P,{text:templateMark:},{text:addrIPOrder:%02d},{date:yyyyMMddHHmmssSSS}" \

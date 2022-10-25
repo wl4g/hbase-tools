@@ -69,7 +69,7 @@ public class PhoenixFakeProperties implements InitializingBean {
 
     private int maxLimit = 1440 * 10;
 
-    private boolean errorContinue = false;
+    private boolean errorContinue = true;
 
     private long awaitSeconds = Duration.ofMillis(30).getSeconds();
 

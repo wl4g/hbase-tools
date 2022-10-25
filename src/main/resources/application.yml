@@ -52,7 +52,7 @@ fake:
   dryRun: true
   threadPools: 1
   maxLimit: 14400
-  errorContinue: false
+  errorContinue: true
   awaitSeconds: 1800
   rowKey:
     name: ROW

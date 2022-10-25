@@ -71,50 +71,43 @@ public class RowKeySpec {
 
     private volatile transient Map<String, PartVariable> variables;
     private volatile transient List<String> delimiters;
-    private volatile transient String rowKeyWithUnresolveDate;
 
     public String to(@NotNull Map<String, String> parts, @NotBlank String rowDate) {
         notNullOf(parts, "rowKeyParts");
         hasTextOf(rowDate, "rowDate");
         ensureInit();
 
-        if (isBlank(rowKeyWithUnresolveDate)) {
-            synchronized (this) {
-                if (isBlank(rowKeyWithUnresolveDate)) {
-                    this.rowKeyWithUnresolveDate = template;
+        String rowKeyWithUnresolveDate = template;
 
-                    // Resolve rowKey without date.
-                    for (Entry<String, String> e : safeMap(parts).entrySet()) {
-                        String columnName = e.getKey();
-                        String value = e.getValue();
-                        PartVariable variable = variables.get(columnName);
-                        if (nonNull(variable) && eqIgnCase(variable.getType(), TEXT_TYPE)) {
-                            StringBuilder rowKeyWithoutDateFormat = new StringBuilder(
-                                    "{".concat(TEXT_TYPE).concat(":").concat(columnName));
-                            if (!isBlank(variable.getFormat())) {
-                                rowKeyWithoutDateFormat.append(":");
-                                rowKeyWithoutDateFormat.append(variable.getFormat());
-                            }
-                            if (!isBlank(variable.getFormat())) {
-                                value = format(variable.getFormat(), parseInt(value));
-                            }
-                            // e.g:
-                            // {text:addrIP:},ELE_P,{text:templateMark},{text:addrIPOrder:%02d},{date:yyyyMMddHHmmss}
-                            rowKeyWithUnresolveDate = replaceIgnoreCase(rowKeyWithUnresolveDate,
-                                    rowKeyWithoutDateFormat.toString().concat(":}"), value);
-                            // e.g:
-                            // {text:addrIP},ELE_P,{text:templateMark},{text:addrIPOrder:%02d},{date:yyyyMMddHHmmss}
-                            rowKeyWithUnresolveDate = replaceIgnoreCase(rowKeyWithUnresolveDate,
-                                    rowKeyWithoutDateFormat.toString().concat("}"), value);
-                        }
-                    }
+        // Resolve rowKey without date.
+        for (Entry<String, String> e : safeMap(parts).entrySet()) {
+            String columnName = e.getKey();
+            String value = e.getValue();
+            PartVariable variable = variables.get(columnName);
+            if (nonNull(variable) && eqIgnCase(variable.getType(), TEXT_TYPE)) {
+                StringBuilder rowKeyWithoutDateFormat = new StringBuilder("{".concat(TEXT_TYPE).concat(":").concat(columnName));
+                if (!isBlank(variable.getFormat())) {
+                    rowKeyWithoutDateFormat.append(":");
+                    rowKeyWithoutDateFormat.append(variable.getFormat());
                 }
+                if (!isBlank(variable.getFormat())) {
+                    value = format(variable.getFormat(), parseInt(value));
+                }
+                // e.g:
+                // {text:addrIP:},ELE_P,{text:templateMark},{text:addrIPOrder:%02d},{date:yyyyMMddHHmmss}
+                rowKeyWithUnresolveDate = replaceIgnoreCase(rowKeyWithUnresolveDate,
+                        rowKeyWithoutDateFormat.toString().concat(":}"), value);
+                // e.g:
+                // {text:addrIP},ELE_P,{text:templateMark},{text:addrIPOrder:%02d},{date:yyyyMMddHHmmss}
+                rowKeyWithUnresolveDate = replaceIgnoreCase(rowKeyWithUnresolveDate,
+                        rowKeyWithoutDateFormat.toString().concat("}"), value);
             }
         }
 
         // Resolve row key date parts.
         String rowKeyDatePattern = variables.get(DATE_PATTERN_KEY).getName();
         String rowKeyDateFormat = "{".concat(DATE_TYPE).concat(":").concat(rowKeyDatePattern).concat("}");
+
         return replaceIgnoreCase(rowKeyWithUnresolveDate, rowKeyDateFormat, rowDate);
     }
 

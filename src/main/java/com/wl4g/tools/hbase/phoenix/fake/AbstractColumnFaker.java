@@ -139,8 +139,6 @@ public abstract class AbstractColumnFaker implements InitializingBean, Disposabl
         CSVParser metaRecords = CSVFormat.DEFAULT.withHeader().withSkipHeaderRecord().parse(in);
         if (nonNull(metaRecords)) {
             for (CSVRecord record : metaRecords) {
-                log.info("Processing meta record : {}", record);
-
                 // Make sample start/end rowKey.
                 final String sampleStartDateString = formatDate(
                         getOffsetDate(fakeStartDate, config.getSampleLastDatePattern(), -config.getSampleLastDateAmount()), // MARK1<->MARK2
@@ -152,6 +150,8 @@ public abstract class AbstractColumnFaker implements InitializingBean, Disposabl
                 final String sampleEndRowKey = config.getRowKey().to(safeMap(record.toMap()), sampleEndDateString);
 
                 // Execution
+                log.info("Processing meta of sampleStartRowKey: {}, sampleEndRowKey: {}, record : {}", sampleStartRowKey,
+                        sampleEndRowKey, record);
                 executor.submit(newProcessTask(sampleStartRowKey, sampleEndRowKey));
             }
             log.info("Waiting for running completion with {}sec ...", config.getAwaitSeconds());
@@ -298,7 +298,7 @@ public abstract class AbstractColumnFaker implements InitializingBean, Disposabl
             SqlLogFileWriter redoWriter = obtainSqlLogFileWriter(newRowKey);
             log.debug("Redo sql: {}", redoSql);
 
-            redoWriter.getRedoSqlWriter().append(redoSql);
+            redoWriter.getRedoSqlWriter().append(redoSql.concat(";"));
             redoWriter.getRedoSqlWriter().newLine();
 
             final long now = currentTimeMillis();

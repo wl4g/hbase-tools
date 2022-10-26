@@ -101,3 +101,14 @@ based on the average value of the first `--fake.monotoneIncrease.sampleBeforeAve
 git clone git@github.com/wl4g/phoenix-fake-tool.git
 mvn clean package -DskipTests -Pphoenix4 -Pbuild:springjar
 ```
+
+## FAQ
+
+- How the generating GraalVM `relfect-config.json`. Notice: The success passed tested versions are: `graalvm-ce-java8-21.0.0.2`, and the failed versions are: `graalvm-ce-java11-22.1.0`
+
+```bash
+/usr/local/graalvm-ce-java8-21.0.0.2/bin/java -jar \
+-agentlib:native-image-agent=config-merge-dir=/tmp/configdir/ \
+phoenix-fake-1.0.0-bin.jar \
+--spring.datasource.url=jdbc:phoenix:localhost:2181 ...
+```

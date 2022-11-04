@@ -38,7 +38,7 @@ java -jar phoenix-fake-1.0.0-bin.jar \
 --spring.datasource.url=jdbc:phoenix:localhost:2181 \
 --fake.workspaceDir=${HOME}/.phoenix-fake-tool/ \
 --fake.writeSqlLogFileFlushOnBatch=1024 \
---fake.writeSqlLogFileFlushOnSeconds=2 \
+--fake.writeSqlLogFlushOnMillis=500 \
 --fake.tableNamespace=safeclound \
 --fake.tableName=tb_ammeter \
 --fake.dryRun=true \
@@ -76,7 +76,7 @@ java -jar phoenix-fake-1.0.0-bin.jar | grep Processed
 
 - `--fake.writeSqlLogFileFlushOnBatch`: How many batch size to undo/redo sql log file buffered writes to SQL to disk every. default is: `1024`.
 
-- `--fake.writeSqlLogFileFlushOnSeconds`: How many seconds to undo/redo sql log file buffered writes to SQL to disk every. default is: `2`.
+- `--fake.writeSqlLogFileFlushOnSeconds`: How many millis to undo/redo sql log file buffered writes to SQL to disk every. default is: `500`.
 
 - `--fake.dryRun`: The specifies whether it is a test run mode, that is, it will not actually write to the Phoenix table, the default is: `true`.
 

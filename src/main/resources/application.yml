@@ -44,7 +44,7 @@ logging:
 fake:
   #workspaceDir: ~/.phoenix-fixtool/
   writeSqlLogFileFlushOnBatch: 1024
-  writeSqlLogFileFlushOnSeconds: 2
+  writeSqlLogFlushOnMillis: 500
   tableNamespace: safeclound
   tableName: tb_ammeter
   randomMinOffsetPercent: 0.8976

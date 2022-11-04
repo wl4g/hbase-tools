@@ -149,8 +149,7 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
             final Map<String, String> sampleRowKeyParts = config.getRowKey().from(sampleRowKey);
 
             // 从 fakeEndDate 开始向后取任意时间点作为结束时间(这里硬编码为1个周期),
-            final Date upperLimitStartDate = getOffsetDate(fakeEndDate, config.getSampleLastDatePattern(),
-                    config.getSampleLastDateAmount());
+            final Date upperLimitStartDate = getOffsetDate(fakeEndDate, config.getSampleLastDatePattern(), 0);
             final Date upperLimitEndDate = getOffsetDate(fakeEndDate, config.getSampleLastDatePattern(),
                     config.getSampleLastDateAmount() * 1);
             final String upperLimitStartRowKey = generateRowKey(sampleRowKeyParts, upperLimitStartDate);
@@ -213,8 +212,7 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
             // 从 fakeStartDate 开始向前取任意时间点作为开始时间(这里硬编码为1个周期),
             final Date lowerLimitStartDate = getOffsetDate(fakeStartDate, config.getSampleLastDatePattern(),
                     config.getSampleLastDateAmount() * -1);
-            final Date lowerLimitEndDate = getOffsetDate(fakeStartDate, config.getSampleLastDatePattern(),
-                    config.getSampleLastDateAmount());
+            final Date lowerLimitEndDate = getOffsetDate(fakeStartDate, config.getSampleLastDatePattern(), 0);
             final String lowerLimitStartRowKey = generateRowKey(sampleRowKeyParts, lowerLimitStartDate);
             final String lowerLimitEndRowKey = generateRowKey(sampleRowKeyParts, lowerLimitEndDate);
 
@@ -288,7 +286,7 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
                 double value) {
 
             // Gets or initial
-            AtomicDouble lastMaxFakeValue = obtainLastMaxFakeValue(columnName, sampleRecord, value);
+            AtomicDouble lastMaxFakeValue = obtainLastMaxFakeValue(columnName, sampleRecord, lowerLimitValue);
 
             // upperLimitValue 不为 Double.MAX 则表示 fakeEndDate 之后有数据, 也即限制生成的
             // fakeValue 上限制.
@@ -356,7 +354,7 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
             return new BigDecimal(fakeValue).setScale(4, BigDecimal.ROUND_HALF_UP);
         }
 
-        private AtomicDouble obtainLastMaxFakeValue(String columnName, Map<String, Object> sampleRecord, double value) {
+        private AtomicDouble obtainLastMaxFakeValue(String columnName, Map<String, Object> sampleRecord, double lowerLimitValue) {
             AtomicDouble lastMaxFakeValue = lastMaxFakeValues.get(columnName);
             if (isNull(lastMaxFakeValue)) {
                 synchronized (this) {
@@ -367,9 +365,9 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
                 }
             }
             if (lastMaxFakeValue.get() == -Double.MAX_VALUE) {
-                log.info("Initial lastMaxFakeValue - columnName: {}, value: {}, sampleRecord: {}", columnName, value,
-                        sampleRecord);
-                lastMaxFakeValue.set(value);
+                log.info("Initial lastMaxFakeValue - columnName: {}, lowerLimitValue: {}, sampleRecord: {}", columnName,
+                        lowerLimitValue, sampleRecord);
+                lastMaxFakeValue.set(lowerLimitValue);
             }
             return lastMaxFakeValue;
         }

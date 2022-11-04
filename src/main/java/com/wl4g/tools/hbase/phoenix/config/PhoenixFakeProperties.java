@@ -57,7 +57,7 @@ public class PhoenixFakeProperties implements InitializingBean {
 
     private int writeSqlLogFileFlushOnBatch = 1024;
 
-    private int writeSqlLogFlushOnSeconds = 2;
+    private int writeSqlLogFlushOnMillis = 500;
 
     private String tableNamespace = "safeclound";
 

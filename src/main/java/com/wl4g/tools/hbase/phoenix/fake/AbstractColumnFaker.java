@@ -288,7 +288,7 @@ public abstract class AbstractColumnFaker implements InitializingBean, Disposabl
 
             final long now = currentTimeMillis();
             if (undoWriter.getBuffers().incrementAndGet() % config.getWriteSqlLogFileFlushOnBatch() == 0
-                    || ((now - undoWriter.getLastFlushTime()) >= config.getWriteSqlLogFlushOnSeconds())) {
+                    || ((now - undoWriter.getLastFlushTime()) >= config.getWriteSqlLogFlushOnMillis())) {
                 undoWriter.getUndoSqlWriter().flush();
                 undoWriter.setLastFlushTime(now);
             }
@@ -312,7 +312,7 @@ public abstract class AbstractColumnFaker implements InitializingBean, Disposabl
 
             final long now = currentTimeMillis();
             if (redoWriter.getBuffers().incrementAndGet() % config.getWriteSqlLogFileFlushOnBatch() == 0
-                    || ((now - redoWriter.getLastFlushTime()) >= config.getWriteSqlLogFlushOnSeconds())) {
+                    || ((now - redoWriter.getLastFlushTime()) >= config.getWriteSqlLogFlushOnMillis())) {
                 redoWriter.getRedoSqlWriter().flush();
                 redoWriter.setLastFlushTime(now);
             }

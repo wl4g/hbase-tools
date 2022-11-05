@@ -49,8 +49,8 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
     }
 
     class ProcessTask implements Runnable {
-        private String sampleStartRowKey;
-        private String sampleEndRowKey;
+        private final String sampleStartRowKey;
+        private final String sampleEndRowKey;
         private final AtomicInteger completed = new AtomicInteger(0);
         private final Map<String, AtomicDouble> lastMaxFakeValues = new HashMap<>();
         private Map<String, Double> upperLimitValues;
@@ -66,6 +66,7 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
             try {
                 final long begin = currentTimeMillis();
                 List<Map<String, Object>> sampleRecords = fetchSampleRecords(sampleStartRowKey, sampleEndRowKey);
+                totalOfAll.addAndGet(sampleRecords.size());
 
                 // value 随着 rowKey 中时间是单调递增的, 无法使用 parallelStream
                 for (Map<String, Object> sampleRecord : safeList(sampleRecords)) {
@@ -111,25 +112,34 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
                                 }
                             }
                         }
-                        totalOfAll.incrementAndGet();
                     } catch (Exception e) {
                         if (config.isErrorContinue() && !(e instanceof IllegalFakeValuePhoenixFakeException)) {
-                            log.warn(format("Unable not generate for %s.", sampleRecord), e);
+                            log.warn(format("Unable not generate fake row for %s.", sampleRecord), e);
                         } else {
                             throw e;
                         }
                     }
-
-                    writeToHTable(newRecord);
-                    completed.incrementAndGet();
+                    try {
+                        writeToHTable(newRecord);
+                        completed.incrementAndGet();
+                    } catch (Exception e) {
+                        if (config.isErrorContinue() && !(e instanceof IllegalFakeValuePhoenixFakeException)) {
+                            log.warn(format("Unable write to htable for %s.", sampleRecord), e);
+                        } else {
+                            throw e;
+                        }
+                    }
                 }
-
                 log.info("Processed completed of {}/{}/{}/{}, sampleStartRowKey: {}, sampleEndRowKey: {}, cost: {}ms",
                         completed.get(), sampleRecords.size(), completedOfAll.get(), totalOfAll.get(), sampleStartRowKey,
                         sampleEndRowKey, (currentTimeMillis() - begin));
-            } catch (Exception e2) {
-                log.error(format("Failed to process of sampleStartRowKey: %s, sampleEndRowKey: %s", sampleStartRowKey,
-                        sampleEndRowKey), e2);
+            } catch (Exception e) {
+                if (config.isErrorContinue()) {
+                    log.error(format("Unable to process and write to htable of sampleStartRowKey: %s, sampleEndRowKey: %s",
+                            sampleStartRowKey, sampleEndRowKey), e);
+                } else {
+                    throw new IllegalStateException(e);
+                }
             }
         }
 

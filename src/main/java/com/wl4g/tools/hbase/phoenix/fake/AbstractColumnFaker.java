@@ -105,7 +105,31 @@ public abstract class AbstractColumnFaker implements InitializingBean, Disposabl
         if (!isActive()) {
             return;
         }
-        log.info("Processed all completed of {}/{}", completedOfAll.get(), totalOfAll.get());
+
+        if (!executor.isShutdown()) {
+            executor.shutdown();
+            log.info("Waiting for all tasks to complete, timeout is {}sec ...", config.getAwaitSeconds());
+            int count = 0, total = (int) (config.getAwaitSeconds() * 10); // 控制超时时强制结束
+            boolean completed = false; // 控制所有执行成功时立即结束
+            while (++count < total && !completed) {
+                completed = executor.awaitTermination(100, TimeUnit.MILLISECONDS);
+            }
+            if (!completed) {
+                // see:https://blog.csdn.net/BIT_666/article/details/125180030
+                // 如果所有任务在关闭后都已完成，则返回true，请注意，除非首先调用了shutdown或shutdownNow，否则isTerminated永远为false。
+                // executor.isTerminated();
+                //
+                // 优雅停止接收新task，正在运行的task继续运行，立即返回
+                // executor.shutdown();
+                //
+                // 立即停止接收新task，终止正在运行的task，立即返回正在等待执行的tasks(注:不是正在运行的tasks).
+                List<Runnable> paddingRunTasks = executor.shutdownNow();
+                log.info("Some processed completed successful of {}/{}, padding tasks: {}", completedOfAll.get(),
+                        totalOfAll.get(), paddingRunTasks);
+            } else {
+                log.info("Successfully processed all completed of {}/{}", completedOfAll.get(), totalOfAll.get());
+            }
+        }
 
         safeMap(sqlLogFileWriters).forEach((key, sqlLogWriter) -> {
             try {
@@ -123,7 +147,6 @@ public abstract class AbstractColumnFaker implements InitializingBean, Disposabl
                 log.error(format("Unable to closing redo writer for '%s'", key), e);
             }
         });
-        executor.shutdown();
     }
 
     protected abstract FakeProvider provider();
@@ -159,8 +182,7 @@ public abstract class AbstractColumnFaker implements InitializingBean, Disposabl
                         sampleEndRowKey, record);
                 executor.submit(newProcessTask(sampleStartRowKey, sampleEndRowKey));
             }
-            log.info("Waiting for running completion with {}sec ...", config.getAwaitSeconds());
-            executor.awaitTermination(config.getAwaitSeconds(), TimeUnit.SECONDS);
+            destroy();
         }
     }
 
@@ -231,47 +253,39 @@ public abstract class AbstractColumnFaker implements InitializingBean, Disposabl
 
     // Save to HBase table.
     protected void writeToHTable(Map<String, Object> newRecord) {
-        try {
-            StringBuilder upsertSql = new StringBuilder(
-                    format("upsert into \"%s\".\"%s\" (", config.getTableNamespace(), config.getTableName()));
-            safeMap(newRecord).forEach((columnName, value) -> {
-                upsertSql.append("\"");
-                upsertSql.append(columnName);
-                upsertSql.append("\",");
-            });
-            upsertSql.delete(upsertSql.length() - 1, upsertSql.length());
-            upsertSql.append(") values (");
-            safeMap(newRecord).forEach((columnName, value) -> {
-                String symbol = "'";
-                if (nonNull(value) && value instanceof Number) {
-                    symbol = "";
-                }
-                upsertSql.append(symbol);
-                upsertSql.append(value);
-                upsertSql.append(symbol);
-                upsertSql.append(",");
-            });
-            upsertSql.delete(upsertSql.length() - 1, upsertSql.length());
-            upsertSql.append(")");
-
-            log.info("Executing: {}", upsertSql);
-            if (!config.isDryRun()) {
-                jdbcTemplate.execute(upsertSql.toString());
-
-                // Save redo SQL to log files.
-                writeRedoSqlLog(newRecord, upsertSql.toString());
-
-                // Save undo SQL to log files.
-                writeUndoSqlLog(newRecord);
+        StringBuilder upsertSql = new StringBuilder(
+                format("upsert into \"%s\".\"%s\" (", config.getTableNamespace(), config.getTableName()));
+        safeMap(newRecord).forEach((columnName, value) -> {
+            upsertSql.append("\"");
+            upsertSql.append(columnName);
+            upsertSql.append("\",");
+        });
+        upsertSql.delete(upsertSql.length() - 1, upsertSql.length());
+        upsertSql.append(") values (");
+        safeMap(newRecord).forEach((columnName, value) -> {
+            String symbol = "'";
+            if (nonNull(value) && value instanceof Number) {
+                symbol = "";
             }
-            completedOfAll.incrementAndGet();
-        } catch (Exception e) {
-            if (config.isErrorContinue()) {
-                log.warn(format("Unable write to htable of : %s", newRecord), e);
-            } else {
-                throw new IllegalStateException(e);
-            }
+            upsertSql.append(symbol);
+            upsertSql.append(value);
+            upsertSql.append(symbol);
+            upsertSql.append(",");
+        });
+        upsertSql.delete(upsertSql.length() - 1, upsertSql.length());
+        upsertSql.append(")");
+
+        log.info("Executing: {}", upsertSql);
+        if (!config.isDryRun()) {
+            jdbcTemplate.execute(upsertSql.toString());
+
+            // Save redo SQL to log files.
+            writeRedoSqlLog(newRecord, upsertSql.toString());
+
+            // Save undo SQL to log files.
+            writeUndoSqlLog(newRecord);
         }
+        completedOfAll.incrementAndGet();
     }
 
     protected void writeUndoSqlLog(Map<String, Object> newRecord) {

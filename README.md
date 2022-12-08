@@ -1,5 +1,7 @@
 # Phoenix Tools
 
+> A general Phoenix-HBase table data faker/cleaner operation tools.
+
 ## Quick start (example):
 
 ### Initial example data:

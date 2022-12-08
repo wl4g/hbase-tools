@@ -5,7 +5,7 @@
     <artifactId>phoenix-tools</artifactId>
     <version>1.0.0</version>
     <name>Phoenix Tools</name>
-    <description>A general Phoenix-HBase table data falsification Tool</description>
+    <description>A general Phoenix-HBase table data faker/cleaner operation tools.</description>
     <url>http://maven.apache.org</url>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

@@ -49,7 +49,7 @@ import lombok.ToString;
 @NoArgsConstructor
 public class ToolsProperties implements InitializingBean {
 
-    private File workspaceDir = new File(USER_HOME + "/.phoenix-tool/");
+    private File workspaceDir = new File(USER_HOME + "/.phoenix-tools/");
     private int writeSqlLogFileFlushOnBatch = 1024;
     private int writeSqlLogFlushOnMillis = 500;
     private String tableNamespace = "safeclound";

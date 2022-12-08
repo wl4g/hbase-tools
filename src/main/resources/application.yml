@@ -41,14 +41,12 @@ logging:
       apache: INFO
       #springframework.jdbc.core: DEBUG
 
-fake:
-  #workspaceDir: ~/.phoenix-fixtool/
+tools:
+  #workspaceDir: ~/.phoenix-tools/
   writeSqlLogFileFlushOnBatch: 1024
   writeSqlLogFlushOnMillis: 500
   tableNamespace: safeclound
   tableName: tb_ammeter
-  randomMinOffsetPercent: 0.8976
-  randomMaxOffsetPercent: 1.1024
   dryRun: true
   threadPools: 1
   maxLimit: 14400
@@ -59,14 +57,17 @@ fake:
     template: "{text:addrIP:},ELE_P,{text:templateMark:},{text:addrIPOrder:%02d},{date:yyyyMMddHHmmssSSS}"
   #startDate: formatDate(addDays(new Date(), -1), "yyyyMMddHH")
   #endDate: formatDate(new Date(), "yyyyMMddHH")
-  sampleLastDatePattern: dd
-  sampleLastDateAmount: 1
-  valueMinRandomPercent: 0.9876
-  valueMaxRandomPercent: 1.0124
-  provider: MONOTONE_INCREASE ## SIMPLE|CUMULATIVE
-  columnNames:
-    - activePower
-    - reactivePower
-  #simple:
-  cumulative:
-    sampleBeforeAverageDateAmount: 3
+  faker:
+    randomMinOffsetPercent: 0.8976
+    randomMaxOffsetPercent: 1.1024
+    sampleLastDatePattern: dd
+    sampleLastDateAmount: 1
+    valueMinRandomPercent: 0.9876
+    valueMaxRandomPercent: 1.0124
+    provider: MONOTONE_INCREASE ## SIMPLE|CUMULATIVE
+    columnNames:
+      - activePower
+      - reactivePower
+    #simple:
+    cumulative:
+      sampleBeforeAverageDateAmount: 3

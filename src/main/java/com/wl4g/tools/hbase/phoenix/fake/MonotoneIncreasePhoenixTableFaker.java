@@ -22,7 +22,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import com.google.common.util.concurrent.AtomicDouble;
 import com.wl4g.infra.common.lang.DateUtils2;
-import com.wl4g.tools.hbase.phoenix.exception.IllegalFakeValuePhoenixFakeException;
+import com.wl4g.tools.hbase.phoenix.config.ToolsProperties.RunnerProvider;
+import com.wl4g.tools.hbase.phoenix.exception.IllegalFakeValueToolsException;
 import com.wl4g.tools.hbase.phoenix.util.RowKeySpec;
 
 import lombok.extern.slf4j.Slf4j;
@@ -36,11 +37,11 @@ import lombok.extern.slf4j.Slf4j;
  * @see https://www.baeldung.com/apache-commons-csv
  */
 @Slf4j
-public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
+public class MonotoneIncreasePhoenixTableFaker extends PhoenixTableFaker {
 
     @Override
-    protected FakeProvider provider() {
-        return FakeProvider.MONOTONE_INCREASE;
+    protected RunnerProvider provider() {
+        return RunnerProvider.MONOTONE_INCREASE_FAKER;
     }
 
     @Override
@@ -105,7 +106,7 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
                                     Object fakeValue = generateFakeValue(columnName, sampleRecord, incrementCount, incrementValue,
                                             upperLimitValue, lowerLimitValue, value);
                                     newRecord.put(columnName, fakeValue);
-                                } else if (!config.getColumnNames().contains(columnName)) {
+                                } else if (!config.getFaker().getColumnNames().contains(columnName)) {
                                     newRecord.put(columnName, value);
                                 } else {
                                     log.warn("TODO 列 '{}' 属于累计值，无法直接使用历史值作为 Fake 值, 必须知道增量才有意义, 或将此列从累计列移除.", columnName);
@@ -113,7 +114,7 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
                             }
                         }
                     } catch (Exception e) {
-                        if (config.isErrorContinue() && !(e instanceof IllegalFakeValuePhoenixFakeException)) {
+                        if (config.isErrorContinue() && !(e instanceof IllegalFakeValueToolsException)) {
                             log.warn(format("Unable not generate fake row for %s.", sampleRecord), e);
                         } else {
                             throw e;
@@ -123,7 +124,7 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
                         writeToHTable(newRecord);
                         completed.incrementAndGet();
                     } catch (Exception e) {
-                        if (config.isErrorContinue() && !(e instanceof IllegalFakeValuePhoenixFakeException)) {
+                        if (config.isErrorContinue() && !(e instanceof IllegalFakeValueToolsException)) {
                             log.warn(format("Unable write to htable for %s.", sampleRecord), e);
                         } else {
                             throw e;
@@ -159,14 +160,14 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
             final Map<String, String> sampleRowKeyParts = config.getRowKey().from(sampleRowKey);
 
             // 从 fakeEndDate 开始向后取任意时间点作为结束时间(这里硬编码为1个周期),
-            final Date upperLimitStartDate = getOffsetDate(fakeEndDate, config.getSampleLastDatePattern(), 0);
-            final Date upperLimitEndDate = getOffsetDate(fakeEndDate, config.getSampleLastDatePattern(),
-                    config.getSampleLastDateAmount() * 1);
+            final Date upperLimitStartDate = getOffsetDate(fakeEndDate, config.getFaker().getSampleLastDatePattern(), 0);
+            final Date upperLimitEndDate = getOffsetDate(fakeEndDate, config.getFaker().getSampleLastDatePattern(),
+                    config.getFaker().getSampleLastDateAmount() * 1);
             final String upperLimitStartRowKey = generateRowKey(sampleRowKeyParts, upperLimitStartDate);
             final String upperLimitEndRowKey = generateRowKey(sampleRowKeyParts, upperLimitEndDate);
 
             StringBuilder columns = new StringBuilder();
-            for (String columnName : safeList(config.getColumnNames())) {
+            for (String columnName : safeList(config.getFaker().getColumnNames())) {
                 columns.append("round(min(to_number(\"");
                 columns.append(columnName);
                 columns.append("\")),4) as ");
@@ -184,21 +185,23 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
 
             if (!result.isEmpty()) {
                 final Map<String, Object> resultRecord = safeMap(result.get(0));
-                return safeList(config.getColumnNames()).stream().collect(toMap(columnName -> columnName, columnName -> {
-                    Object columnValue = resultRecord.get(columnName);
-                    if (isNull(columnValue)) { // fix: Phoenix default to Upper
-                        columnValue = resultRecord.get(columnName.toUpperCase());
-                    }
-                    // 为空则表示 fakeEndDate 之后无数据, 也即无法限制生成的 fakeValue 上限制.
-                    if (isNull(columnValue)) {
-                        return Double.MAX_VALUE;
-                    } else if (columnValue instanceof Number) {
-                        return ((BigDecimal) columnValue).setScale(4).doubleValue();
-                    }
-                    log.warn("Unable parse upperLimit of sampleRecord: {}, result: {}, columnValue: {}", sampleRecord, result,
-                            columnValue);
-                    return Double.MAX_VALUE;
-                }));
+                return safeList(config.getFaker().getColumnNames()).stream()
+                        .collect(toMap(columnName -> columnName, columnName -> {
+                            Object columnValue = resultRecord.get(columnName);
+                            // fix: Phoenix default to Upper
+                            if (isNull(columnValue)) {
+                                columnValue = resultRecord.get(columnName.toUpperCase());
+                            }
+                            // 为空则表示 fakeEndDate 之后无数据, 也即无法限制生成的 fakeValue 上限制.
+                            if (isNull(columnValue)) {
+                                return Double.MAX_VALUE;
+                            } else if (columnValue instanceof Number) {
+                                return ((BigDecimal) columnValue).setScale(4).doubleValue();
+                            }
+                            log.warn("Unable parse upperLimit of sampleRecord: {}, result: {}, columnValue: {}", sampleRecord,
+                                    result, columnValue);
+                            return Double.MAX_VALUE;
+                        }));
             }
 
             return emptyMap();
@@ -220,14 +223,14 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
             final Map<String, String> sampleRowKeyParts = config.getRowKey().from(sampleRowKey);
 
             // 从 fakeStartDate 开始向前取任意时间点作为开始时间(这里硬编码为1个周期),
-            final Date lowerLimitStartDate = getOffsetDate(fakeStartDate, config.getSampleLastDatePattern(),
-                    config.getSampleLastDateAmount() * -1);
-            final Date lowerLimitEndDate = getOffsetDate(fakeStartDate, config.getSampleLastDatePattern(), 0);
+            final Date lowerLimitStartDate = getOffsetDate(fakeStartDate, config.getFaker().getSampleLastDatePattern(),
+                    config.getFaker().getSampleLastDateAmount() * -1);
+            final Date lowerLimitEndDate = getOffsetDate(fakeStartDate, config.getFaker().getSampleLastDatePattern(), 0);
             final String lowerLimitStartRowKey = generateRowKey(sampleRowKeyParts, lowerLimitStartDate);
             final String lowerLimitEndRowKey = generateRowKey(sampleRowKeyParts, lowerLimitEndDate);
 
             StringBuilder columns = new StringBuilder();
-            for (String columnName : safeList(config.getColumnNames())) {
+            for (String columnName : safeList(config.getFaker().getColumnNames())) {
                 columns.append("round(max(to_number(\"");
                 columns.append(columnName);
                 columns.append("\")),4) as ");
@@ -245,21 +248,24 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
 
             if (!result.isEmpty()) {
                 final Map<String, Object> resultRecord = safeMap(result.get(0));
-                return safeList(config.getColumnNames()).stream().collect(toMap(columnName -> columnName, columnName -> {
-                    Object columnValue = resultRecord.get(columnName);
-                    if (isNull(columnValue)) { // fix: Phoenix default to Upper
-                        columnValue = resultRecord.get(columnName.toUpperCase());
-                    }
-                    // 为空则表示 fakeStartDate 之前无数据, 也即无法限制生成的 fakeValue 下限制.
-                    if (isNull(columnValue)) {
-                        return Double.MIN_VALUE;
-                    } else if (columnValue instanceof Number) {
-                        return ((BigDecimal) columnValue).setScale(4).doubleValue();
-                    }
-                    log.warn("Unable parse lowerLimit of sampleRecord: {}, result: {}, columnValue: {}", sampleRecord, result,
-                            columnValue);
-                    return Double.MIN_VALUE;
-                }));
+                return safeList(config.getFaker().getColumnNames()).stream()
+                        .collect(toMap(columnName -> columnName, columnName -> {
+                            Object columnValue = resultRecord.get(columnName);
+                            if (isNull(columnValue)) { // fix: Phoenix default
+                                                       // to Upper
+                                columnValue = resultRecord.get(columnName.toUpperCase());
+                            }
+                            // 为空则表示 fakeStartDate 之前无数据, 也即无法限制生成的 fakeValue
+                            // 下限制.
+                            if (isNull(columnValue)) {
+                                return Double.MIN_VALUE;
+                            } else if (columnValue instanceof Number) {
+                                return ((BigDecimal) columnValue).setScale(4).doubleValue();
+                            }
+                            log.warn("Unable parse lowerLimit of sampleRecord: {}, result: {}, columnValue: {}", sampleRecord,
+                                    result, columnValue);
+                            return Double.MIN_VALUE;
+                        }));
             }
 
             return emptyMap();
@@ -318,8 +324,8 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
             // int maxAttempts =
             // config.getCumulativeFaker().getMaxAttempts();
             // do {
-            double fakeAmount = nextDouble(config.getValueMinRandomPercent() * incrementValue,
-                    config.getValueMaxRandomPercent() * incrementValue);
+            double fakeAmount = nextDouble(config.getFaker().getValueMinRandomPercent() * incrementValue,
+                    config.getFaker().getValueMaxRandomPercent() * incrementValue);
             double fakeValue = lastMaxFakeValue.get() + fakeAmount;
             // if (i > 0) {
             // log.info("Re-generating {} of incrementValue: {}, value: {},
@@ -343,17 +349,17 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
 
             // 检查是否保持递增
             if (fakeValue < lastMaxFakeValue.get()) {
-                throw new IllegalFakeValuePhoenixFakeException(format(
+                throw new IllegalFakeValueToolsException(format(
                         "Should not be here, must be fakeValue >= lastMaxFakeValue, but %s >= %s ?, valueMinRandomPercent: %s, valueMaxRandomPercent: %s, sampleRecord: %s",
-                        fakeValue, lastMaxFakeValue, config.getValueMinRandomPercent(), config.getValueMaxRandomPercent(),
-                        sampleRecord));
+                        fakeValue, lastMaxFakeValue, config.getFaker().getValueMinRandomPercent(),
+                        config.getFaker().getValueMaxRandomPercent(), sampleRecord));
             }
             // 检查是否超过 fakeEndDate 之后的实际数据最小值限制.
             if (fakeValue >= upperLimitValue) {
-                throw new IllegalFakeValuePhoenixFakeException(format(
+                throw new IllegalFakeValueToolsException(format(
                         "Invalid generated fakeValue, must be fakeValue < upperLimitValue, but %s < %s ?, valueMinRandomPercent: %s, valueMaxRandomPercent: %s, sampleRecord: %s",
-                        fakeValue, upperLimitValue, config.getValueMinRandomPercent(), config.getValueMaxRandomPercent(),
-                        sampleRecord));
+                        fakeValue, upperLimitValue, config.getFaker().getValueMinRandomPercent(),
+                        config.getFaker().getValueMaxRandomPercent(), sampleRecord));
             }
             log.info("Update lastMaxFakeValue - incrementValue: {}, fakeValue: {}, value: {}, sampleRecord: {}", incrementValue,
                     fakeValue, value, sampleRecord);
@@ -403,17 +409,17 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
         final Date sampleBeforeAvgEndDate = DateUtils2.parseDate(sampleRowKeyDateString, rowKeyDatePattern);
 
         final Date sampleBeforeAvgStartDate = getOffsetRowKeyDate(sampleRowKeyDateString, sampleRowKeyParts,
-                -config.getMonotoneIncrease().getSampleBeforeAverageDateAmount());
+                -config.getFaker().getMonotoneIncrease().getSampleBeforeAverageDateAmount());
         final String sampleBeforeAvgStartRowKey = generateRowKey(sampleRowKeyParts, sampleBeforeAvgStartDate);
 
         StringBuilder columns = new StringBuilder();
-        for (String columnName : safeList(config.getColumnNames())) {
+        for (String columnName : safeList(config.getFaker().getColumnNames())) {
             columns.append("round((max(to_number(\"");
             columns.append(columnName);
             columns.append("\"))-min(to_number(\"");
             columns.append(columnName);
             columns.append("\")))/");
-            columns.append(Math.abs(config.getMonotoneIncrease().getSampleBeforeAverageDateAmount()));
+            columns.append(Math.abs(config.getFaker().getMonotoneIncrease().getSampleBeforeAverageDateAmount()));
             columns.append(",4) as ");
             columns.append(columnName);
             columns.append(",");
@@ -435,7 +441,7 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
             final Map<String, Object> resultRecord = safeMap(result.get(0));
             final Long count = (Long) resultRecord.get(SQL_COUNT_KEY);
 
-            Map<String, Double> incrementValues = safeList(config.getColumnNames()).stream()
+            Map<String, Double> incrementValues = safeList(config.getFaker().getColumnNames()).stream()
                     .collect(toMap(columnName -> columnName, columnName -> {
                         Object columnValue = resultRecord.get(columnName);
                         // fix: Phoenix default to Upper
@@ -463,7 +469,7 @@ public class MonotoneIncreaseColumnFaker extends AbstractColumnFaker {
             // 例如 count 是过去 getSampleBeforeAverageDateAmount()=3 天的总记录数, 这里要的 1
             // 天平均的记录数.
             double cycles = DateUtils2.getDistanceOf(sampleBeforeAvgStartDate, sampleBeforeAvgEndDate,
-                    config.getSampleLastDatePattern());
+                    config.getFaker().getSampleLastDatePattern());
             incrementValues.put(AVG_COUNT_KEY, count / cycles);
             return incrementValues;
         }

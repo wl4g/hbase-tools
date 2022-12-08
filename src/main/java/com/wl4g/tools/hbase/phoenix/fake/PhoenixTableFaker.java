@@ -8,12 +8,6 @@ import static java.lang.String.format;
 import static java.lang.System.currentTimeMillis;
 import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
-import static org.apache.commons.lang3.time.DateUtils.addDays;
-import static org.apache.commons.lang3.time.DateUtils.addHours;
-import static org.apache.commons.lang3.time.DateUtils.addMinutes;
-import static org.apache.commons.lang3.time.DateUtils.addMonths;
-import static org.apache.commons.lang3.time.DateUtils.addSeconds;
-import static org.apache.commons.lang3.time.DateUtils.addYears;
 import static org.apache.commons.lang3.time.DateUtils.parseDate;
 
 import java.io.BufferedWriter;
@@ -44,7 +38,9 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-import com.wl4g.tools.hbase.phoenix.config.PhoenixFakeProperties;
+import com.wl4g.tools.hbase.phoenix.config.ToolsProperties;
+import com.wl4g.tools.hbase.phoenix.config.ToolsProperties.RunnerProvider;
+import com.wl4g.tools.hbase.phoenix.util.DateTool;
 import com.wl4g.tools.hbase.phoenix.util.RowKeySpec;
 
 import lombok.AllArgsConstructor;
@@ -62,9 +58,9 @@ import lombok.extern.slf4j.Slf4j;
  * @see https://www.baeldung.com/apache-commons-csv
  */
 @Slf4j
-public abstract class AbstractColumnFaker implements InitializingBean, DisposableBean, ApplicationRunner {
+public abstract class PhoenixTableFaker implements InitializingBean, DisposableBean, ApplicationRunner {
 
-    protected @Autowired PhoenixFakeProperties config;
+    protected @Autowired ToolsProperties config;
     protected @Autowired JdbcTemplate jdbcTemplate;
     protected final AtomicInteger totalOfAll = new AtomicInteger(0); // e.g:devices-total
     protected final AtomicInteger completedOfAll = new AtomicInteger(0);
@@ -149,7 +145,7 @@ public abstract class AbstractColumnFaker implements InitializingBean, Disposabl
         });
     }
 
-    protected abstract FakeProvider provider();
+    protected abstract RunnerProvider provider();
 
     private boolean isActive() {
         return provider() == config.getProvider();
@@ -169,10 +165,11 @@ public abstract class AbstractColumnFaker implements InitializingBean, Disposabl
             for (CSVRecord record : metaRecords) {
                 // Make sample start/end rowKey.
                 final String sampleStartDateString = formatDate(
-                        getOffsetDate(fakeStartDate, config.getSampleLastDatePattern(), -config.getSampleLastDateAmount()), // MARK1<->MARK2
+                        getOffsetDate(fakeStartDate, config.getFaker().getSampleLastDatePattern(),
+                                -config.getFaker().getSampleLastDateAmount()), // MARK1<->MARK2
                         rowKeyDatePattern);
-                final String sampleEndDateString = formatDate(
-                        getOffsetDate(fakeEndDate, config.getSampleLastDatePattern(), -config.getSampleLastDateAmount()),
+                final String sampleEndDateString = formatDate(getOffsetDate(fakeEndDate,
+                        config.getFaker().getSampleLastDatePattern(), -config.getFaker().getSampleLastDateAmount()),
                         rowKeyDatePattern);
                 final String sampleStartRowKey = config.getRowKey().to(safeMap(record.toMap()), sampleStartDateString);
                 final String sampleEndRowKey = config.getRowKey().to(safeMap(record.toMap()), sampleEndDateString);
@@ -200,7 +197,7 @@ public abstract class AbstractColumnFaker implements InitializingBean, Disposabl
     protected String generateFakeRowKey(final String sampleRowKey) throws ParseException {
         final Map<String, String> rowKeyParts = config.getRowKey().from(sampleRowKey);
         final String rowKeyDateString = rowKeyParts.get(RowKeySpec.DATE_PATTERN_KEY);
-        final Date fakeDate = getOffsetRowKeyDate(rowKeyDateString, rowKeyParts, config.getSampleLastDateAmount()); // MARK1<->MARK2
+        final Date fakeDate = getOffsetRowKeyDate(rowKeyDateString, rowKeyParts, config.getFaker().getSampleLastDateAmount()); // MARK1<->MARK2
         return generateRowKey(rowKeyParts, fakeDate);
     }
 
@@ -211,44 +208,11 @@ public abstract class AbstractColumnFaker implements InitializingBean, Disposabl
     protected Date getOffsetRowKeyDate(final String rowKeyDateString, final Map<String, String> rowKeyParts, int dateAmount)
             throws ParseException {
         Date date = parseDate(rowKeyDateString, rowKeyDatePattern);
-        return getOffsetDate(date, config.getSampleLastDatePattern(), dateAmount);
+        return getOffsetDate(date, config.getFaker().getSampleLastDatePattern(), dateAmount);
     }
 
     protected Date getOffsetDate(Date date, String datePattern, int dateAmount) throws ParseException {
-        switch (datePattern) {
-        case "yy":
-        case "y":
-        case "YY":
-        case "Y":
-            date = addYears(date, dateAmount);
-            break;
-        case "MM":
-        case "M":
-            date = addMonths(date, dateAmount);
-            break;
-        case "dd":
-        case "d":
-        case "DD":
-        case "D":
-            date = addDays(date, dateAmount);
-            break;
-        case "HH":
-        case "H":
-        case "hh":
-        case "h":
-            date = addHours(date, dateAmount);
-            break;
-        case "mm":
-        case "m":
-            date = addMinutes(date, dateAmount);
-            break;
-        case "ss":
-        case "s":
-            date = addSeconds(date, dateAmount);
-            break;
-        }
-
-        return date;
+        return DateTool.getOffsetDate(date, datePattern, dateAmount);
     }
 
     // Save to HBase table.
@@ -363,10 +327,6 @@ public abstract class AbstractColumnFaker implements InitializingBean, Disposabl
         }
 
         return sqlLogWriter;
-    }
-
-    public static enum FakeProvider {
-        SIMPLE, MONOTONE_INCREASE;
     }
 
     @Getter

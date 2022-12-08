@@ -15,33 +15,18 @@
  */
 package com.wl4g.tools.hbase.phoenix.config;
 
-import static com.wl4g.infra.common.lang.DateUtils2.formatDate;
-import static java.lang.System.currentTimeMillis;
-import static org.apache.commons.lang3.SystemUtils.USER_HOME;
-import static org.apache.commons.lang3.time.DateUtils.addDays;
-
-import java.io.File;
-import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 import javax.validation.constraints.Min;
 
-import org.springframework.beans.factory.InitializingBean;
-
-import com.wl4g.infra.common.io.FileIOUtils;
-import com.wl4g.tools.hbase.phoenix.fake.AbstractColumnFaker.FakeProvider;
-import com.wl4g.tools.hbase.phoenix.util.RowKeySpec;
-
-import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 
 /**
- * {@link PhoenixFakeProperties}
+ * {@link FakerProperties}
  * 
  * @author James Wong
  * @version 2022-10-22
@@ -51,33 +36,7 @@ import lombok.ToString;
 @Setter
 @ToString
 @NoArgsConstructor
-public class PhoenixFakeProperties implements InitializingBean {
-
-    private File workspaceDir = new File(USER_HOME + "/.phoenix-fake-tool/");
-
-    private int writeSqlLogFileFlushOnBatch = 1024;
-
-    private int writeSqlLogFlushOnMillis = 500;
-
-    private String tableNamespace = "safeclound";
-
-    private String tableName = "tb_ammeter";
-
-    private boolean dryRun = true;
-
-    private int threadPools = 1;
-
-    private int maxLimit = 1440 * 10;
-
-    private boolean errorContinue = true;
-
-    private long awaitSeconds = Duration.ofMillis(30).getSeconds();
-
-    private RowKeySpec rowKey = new RowKeySpec();
-
-    private String startDate = formatDate(addDays(new Date(), -1), "yyyyMMddHH");
-
-    private String endDate = formatDate(new Date(), "yyyyMMddHH");
+public class FakerProperties {
 
     /**
      * 时间刻度: 如用于采样时获取过去一段"时间量"的历史数据; </br>
@@ -109,25 +68,6 @@ public class PhoenixFakeProperties implements InitializingBean {
 
     private MonotoneIncreaseColumnFakerConfig monotoneIncrease = new MonotoneIncreaseColumnFakerConfig();
 
-    private FakeProvider provider = FakeProvider.MONOTONE_INCREASE;
-
-    private transient @Setter(AccessLevel.NONE) File undoSqlDir;
-    private transient @Setter(AccessLevel.NONE) File redoSqlDir;
-
-    @Override
-    public void afterPropertiesSet() throws Exception {
-        FileIOUtils.forceMkdirParent(workspaceDir);
-
-        this.undoSqlDir = new File(workspaceDir, "undo-" + currentTimeMillis());
-        FileIOUtils.forceMkdir(undoSqlDir);
-
-        this.redoSqlDir = new File(workspaceDir, "redo-" + currentTimeMillis());
-        FileIOUtils.forceMkdir(redoSqlDir);
-
-        // Ensure initialized.
-        rowKey.ensureInit();
-    }
-
     @Getter
     @Setter
     @ToString
@@ -141,7 +81,7 @@ public class PhoenixFakeProperties implements InitializingBean {
 
         /**
          * 时间量: 基于过去一段时长(3d)的平均值, 使用那种"时间刻度"参考:
-         * {@link PhoenixFakeProperties#sampleLastDatePattern}
+         * {@link ToolsProperties#sampleLastDatePattern}
          */
         private @Min(1) int sampleBeforeAverageDateAmount = 3;
 

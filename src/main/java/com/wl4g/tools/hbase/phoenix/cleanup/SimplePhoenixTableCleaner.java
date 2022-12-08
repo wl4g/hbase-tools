@@ -1,4 +1,4 @@
-package com.wl4g.tools.hbase.phoenix.fake;
+package com.wl4g.tools.hbase.phoenix.cleanup;
 
 import static com.wl4g.infra.common.collection.CollectionUtils2.safeList;
 import static com.wl4g.infra.common.collection.CollectionUtils2.safeMap;
@@ -14,25 +14,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.wl4g.tools.hbase.phoenix.exception.IllegalFakeValuePhoenixFakeException;
+import com.wl4g.tools.hbase.phoenix.exception.IllegalFakeValueToolsException;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Simple Fake 数据处理器. 如有功功率值, 此列的数值没有递增特性.
+ * {@link SimplePhoenixTableCleaner}
  * 
  * @author James Wong
- * @version 2022-10-22
+ * @version 2022-12-08
  * @since v1.0.0
- * @see https://www.baeldung.com/apache-commons-csv
  */
 @Slf4j
-public class SimpleColumnFaker extends AbstractColumnFaker {
+public class SimplePhoenixTableCleaner extends PhoenixTableCleaner {
 
     @Override
-    protected FakeProvider provider() {
-        return FakeProvider.SIMPLE;
+    protected RunnerProvider provider() {
+        return RunnerProvider.SIMPLE;
     }
 
     @Override
@@ -73,7 +72,7 @@ public class SimpleColumnFaker extends AbstractColumnFaker {
                         }
                         totalOfAll.incrementAndGet();
                     } catch (Exception e) {
-                        if (config.isErrorContinue() && !(e instanceof IllegalFakeValuePhoenixFakeException)) {
+                        if (config.isErrorContinue() && !(e instanceof IllegalFakeValueToolsException)) {
                             log.warn(format("Could not generate for %s.", sampleRecord), e);
                         } else {
                             throw new IllegalStateException(e);

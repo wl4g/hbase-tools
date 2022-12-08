@@ -19,33 +19,39 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import com.wl4g.tools.hbase.phoenix.fake.MonotoneIncreaseColumnFaker;
-import com.wl4g.tools.hbase.phoenix.fake.SimpleColumnFaker;
+import com.wl4g.tools.hbase.phoenix.cleanup.SimplePhoenixTableCleaner;
+import com.wl4g.tools.hbase.phoenix.fake.MonotoneIncreasePhoenixTableFaker;
+import com.wl4g.tools.hbase.phoenix.fake.SimplePhoenixTableFaker;
 
 /**
- * {@link PhoenixFakeAutoConfiguration}
+ * {@link ToolsAutoConfiguration}
  * 
  * @author James Wong
  * @version 2022-10-22
- * @since v3.0.0
+ * @since v1.0.0
  */
 @Configuration
-public class PhoenixFakeAutoConfiguration {
+public class ToolsAutoConfiguration {
 
     @Bean
-    @ConfigurationProperties(prefix = "fake")
-    public PhoenixFakeProperties phoenixFakeProperties() {
-        return new PhoenixFakeProperties();
+    @ConfigurationProperties(prefix = "tools")
+    public ToolsProperties toolsProperties() {
+        return new ToolsProperties();
     }
 
     @Bean
-    public SimpleColumnFaker simpleColumnFaker() {
-        return new SimpleColumnFaker();
+    public SimplePhoenixTableFaker simplePhoenixTableFaker() {
+        return new SimplePhoenixTableFaker();
     }
 
     @Bean
-    public MonotoneIncreaseColumnFaker monotoneIncreaseColumnFaker() {
-        return new MonotoneIncreaseColumnFaker();
+    public MonotoneIncreasePhoenixTableFaker monotoneIncreasePhoenixTableFaker() {
+        return new MonotoneIncreasePhoenixTableFaker();
+    }
+
+    @Bean
+    public SimplePhoenixTableCleaner simplePhoenixTableCleaner() {
+        return new SimplePhoenixTableCleaner();
     }
 
 }

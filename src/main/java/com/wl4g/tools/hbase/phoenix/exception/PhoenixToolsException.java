@@ -16,28 +16,28 @@
 package com.wl4g.tools.hbase.phoenix.exception;
 
 /**
- * {@link IllegalFakeValuePhoenixFakeException}
+ * {@link PhoenixToolsException}
  * 
  * @author James Wong
  * @version 2022-10-25
  * @since v3.0.0
  */
-public class IllegalFakeValuePhoenixFakeException extends PhoenixFakeException {
+public class PhoenixToolsException extends RuntimeException {
     private static final long serialVersionUID = 1L;
 
-    public IllegalFakeValuePhoenixFakeException() {
+    public PhoenixToolsException() {
         super();
     }
 
-    public IllegalFakeValuePhoenixFakeException(String message) {
+    public PhoenixToolsException(String message) {
         super(message);
     }
 
-    public IllegalFakeValuePhoenixFakeException(String message, Throwable cause) {
+    public PhoenixToolsException(String message, Throwable cause) {
         super(message, cause);
     }
 
-    public IllegalFakeValuePhoenixFakeException(Throwable cause) {
+    public PhoenixToolsException(Throwable cause) {
         super(cause);
     }
 

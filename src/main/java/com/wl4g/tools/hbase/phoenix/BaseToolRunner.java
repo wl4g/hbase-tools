@@ -29,6 +29,7 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -136,6 +137,17 @@ public abstract class BaseToolRunner implements InitializingBean, DisposableBean
             }
         });
     }
+
+    @Override
+    public void run(ApplicationArguments args) throws Exception {
+        if (!isActive()) {
+            log.warn("Skip execute of {} is inactive !", provider());
+            return;
+        }
+        execute();
+    }
+
+    protected abstract void execute();
 
     protected abstract RunnerProvider provider();
 

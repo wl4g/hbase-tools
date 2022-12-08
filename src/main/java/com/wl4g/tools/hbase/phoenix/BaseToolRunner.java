@@ -185,12 +185,14 @@ public abstract class BaseToolRunner implements InitializingBean, DisposableBean
             SqlLogFileWriter redoWriter = obtainSqlLogFileWriter(rowKey);
             log.debug("write sql: {}", sql);
 
-            if (isRedoSqlLog) {
-                redoWriter.getRedoSqlWriter().append(sql.concat(";"));
-                redoWriter.getRedoSqlWriter().newLine();
-            } else {
-                redoWriter.getUndoSqlWriter().append(sql.concat(";"));
-                redoWriter.getUndoSqlWriter().newLine();
+            synchronized (this) {
+                if (isRedoSqlLog) {
+                    redoWriter.getRedoSqlWriter().append(sql.concat(";"));
+                    redoWriter.getRedoSqlWriter().newLine();
+                } else {
+                    redoWriter.getUndoSqlWriter().append(sql.concat(";"));
+                    redoWriter.getUndoSqlWriter().newLine();
+                }
             }
 
             final long now = currentTimeMillis();

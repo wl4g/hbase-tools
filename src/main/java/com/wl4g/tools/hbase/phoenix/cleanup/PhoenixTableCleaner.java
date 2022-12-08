@@ -60,7 +60,7 @@ public abstract class PhoenixTableCleaner extends BaseToolRunner {
     @Override
     protected void executeUpdateToHTable(Map<String, Object> deleteRecord) {
         final String deleteRowKey = (String) deleteRecord.get(config.getRowKey().getName());
-        final String deleteSql = format("delete from \"%s\".\"%s\" where %s='%s'", config.getTableNamespace(),
+        final String deleteSql = format("delete from \"%s\".\"%s\" where \"%s\"='%s'", config.getTableNamespace(),
                 config.getTableName(), config.getRowKey().getName(), deleteRowKey);
 
         log.info("Executing: {}", deleteSql);

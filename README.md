@@ -8,6 +8,12 @@
 
 - [phoenix-init.sql](testdata/phoenix-init.sql)
 
+- import sqls with sqlline.py
+
+```bash
+sqlline.py localhost:2181 ./phoenix-init.sql
+```
+
 ### Generate meta CSV SQLs
 
 - for example:

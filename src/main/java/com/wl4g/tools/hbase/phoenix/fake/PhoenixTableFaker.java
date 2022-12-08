@@ -146,7 +146,7 @@ public abstract class PhoenixTableFaker extends BaseToolRunner {
         String newRowKey = (String) newRecord.get(config.getRowKey().getName());
         String undoSql = format("delete from \"%s\".\"%s\" where \"%s\"='%s';", config.getTableNamespace(), config.getTableName(),
                 config.getRowKey().getName(), newRowKey);
-        doWriteSqlLog(newRowKey, undoSql);
+        doWriteSqlLog(() -> newRowKey, () -> undoSql);
     }
 
 }

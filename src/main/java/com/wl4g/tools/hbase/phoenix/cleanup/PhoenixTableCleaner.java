@@ -82,27 +82,31 @@ public abstract class PhoenixTableCleaner extends BaseToolRunner {
 
     @Override
     protected void writeUndoSqlLog(Map<String, Object> record) {
-        StringBuilder upsertSql = new StringBuilder(
-                format("upsert into \"%s\".\"%s\" (", config.getTableNamespace(), config.getTableName()));
-        safeMap(record).forEach((columnName, value) -> {
-            upsertSql.append("\"");
-            upsertSql.append(columnName);
-            upsertSql.append("\",");
+        String deleteRowKey = (String) record.get(config.getRowKey().getName());
+        doWriteSqlLog(() -> deleteRowKey, () -> {
+            StringBuilder undoSql = new StringBuilder(
+                    format("upsert into \"%s\".\"%s\" (", config.getTableNamespace(), config.getTableName()));
+            safeMap(record).forEach((columnName, value) -> {
+                undoSql.append("\"");
+                undoSql.append(columnName);
+                undoSql.append("\",");
+            });
+            undoSql.delete(undoSql.length() - 1, undoSql.length());
+            undoSql.append(") values (");
+            safeMap(record).forEach((columnName, value) -> {
+                String symbol = "'";
+                if (nonNull(value) && value instanceof Number) {
+                    symbol = "";
+                }
+                undoSql.append(symbol);
+                undoSql.append(value);
+                undoSql.append(symbol);
+                undoSql.append(",");
+            });
+            undoSql.delete(undoSql.length() - 1, undoSql.length());
+            undoSql.append(")");
+            return undoSql.toString();
         });
-        upsertSql.delete(upsertSql.length() - 1, upsertSql.length());
-        upsertSql.append(") values (");
-        safeMap(record).forEach((columnName, value) -> {
-            String symbol = "'";
-            if (nonNull(value) && value instanceof Number) {
-                symbol = "";
-            }
-            upsertSql.append(symbol);
-            upsertSql.append(value);
-            upsertSql.append(symbol);
-            upsertSql.append(",");
-        });
-        upsertSql.delete(upsertSql.length() - 1, upsertSql.length());
-        upsertSql.append(")");
     }
 
 }

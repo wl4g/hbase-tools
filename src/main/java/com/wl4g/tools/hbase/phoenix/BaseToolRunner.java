@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -155,13 +156,17 @@ public abstract class BaseToolRunner implements InitializingBean, DisposableBean
 
     protected void writeRedoSqlLog(Map<String, Object> record, String redoSql) {
         String newRowKey = (String) record.get(config.getRowKey().getName());
-        doWriteSqlLog(newRowKey, redoSql);
+        doWriteSqlLog(() -> newRowKey, () -> redoSql);
     }
 
     protected abstract void writeUndoSqlLog(Map<String, Object> record);
 
-    protected void doWriteSqlLog(String rowKey, String sql) {
+    protected void doWriteSqlLog(Callable<String> rowKeyCall, Callable<String> sqlCall) {
+        String rowKey = null;
+        String sql = null;
         try {
+            rowKey = rowKeyCall.call();
+            sql = sqlCall.call();
             hasTextOf(rowKey, "rowKey");
             hasTextOf(sql, "sql");
 

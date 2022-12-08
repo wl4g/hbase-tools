@@ -147,7 +147,7 @@ public abstract class BaseToolRunner implements InitializingBean, DisposableBean
         execute();
     }
 
-    protected abstract void execute();
+    protected abstract void execute() throws Exception;
 
     protected abstract RunnerProvider provider();
 

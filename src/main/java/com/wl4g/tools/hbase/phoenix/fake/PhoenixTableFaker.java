@@ -17,7 +17,6 @@ import java.util.Map;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
-import org.springframework.boot.ApplicationArguments;
 
 import com.wl4g.tools.hbase.phoenix.BaseToolRunner;
 import com.wl4g.tools.hbase.phoenix.util.DateTool;
@@ -45,10 +44,7 @@ public abstract class PhoenixTableFaker extends BaseToolRunner {
     }
 
     @Override
-    public void run(ApplicationArguments args) throws Exception {
-        if (!isActive()) {
-            return;
-        }
+    public void execute() throws Exception {
         // see: https://www.baeldung.com/apache-commons-csv
         log.info("Loading metadata from csv ...");
 

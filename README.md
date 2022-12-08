@@ -35,9 +35,9 @@ WHERE
 
 ### Startup runner
 
-- [Generate missing data with Faker](./README_FAKER.md)
+- [Generating missing data with Faker](./README_FAKER.md)
 
-- [Remove useless data with cleaner](./README_CLEANER.md)
+- [Removing useless data with Cleaner](./README_CLEANER.md)
 
 ## Developer guide
 

@@ -1,11 +1,11 @@
-# Phoenix Tool for Faker
+# Phoenix tools for Faker
 
 ## Quick start (example):
 
 - Execution faker (Generate fake data based on characteristics such as historical sample values)
 
 ```bash
-java -jar phoenix-tool-1.0.0-bin.jar \
+java -jar phoenix-tools-1.0.0-bin.jar \
 --spring.datasource.url=jdbc:phoenix:localhost:2181 \
 --tools.workspaceDir=${HOME}/.phoenix-tools/ \
 --tools.provider=MONOTONE_INCREASE_FAKER \

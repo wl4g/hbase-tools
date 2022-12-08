@@ -168,12 +168,12 @@ public abstract class BaseToolRunner implements InitializingBean, DisposableBean
 
     protected void writeRedoSqlLog(Map<String, Object> record, String redoSql) {
         String newRowKey = (String) record.get(config.getRowKey().getName());
-        doWriteSqlLog(() -> newRowKey, () -> redoSql);
+        doWriteSqlLog(true, () -> newRowKey, () -> redoSql);
     }
 
     protected abstract void writeUndoSqlLog(Map<String, Object> record);
 
-    protected void doWriteSqlLog(Callable<String> rowKeyCall, Callable<String> sqlCall) {
+    protected void doWriteSqlLog(boolean isRedoSqlLog, Callable<String> rowKeyCall, Callable<String> sqlCall) {
         String rowKey = null;
         String sql = null;
         try {
@@ -185,13 +185,22 @@ public abstract class BaseToolRunner implements InitializingBean, DisposableBean
             SqlLogFileWriter redoWriter = obtainSqlLogFileWriter(rowKey);
             log.debug("write sql: {}", sql);
 
-            redoWriter.getRedoSqlWriter().append(sql.concat(";"));
-            redoWriter.getRedoSqlWriter().newLine();
+            if (isRedoSqlLog) {
+                redoWriter.getRedoSqlWriter().append(sql.concat(";"));
+                redoWriter.getRedoSqlWriter().newLine();
+            } else {
+                redoWriter.getUndoSqlWriter().append(sql.concat(";"));
+                redoWriter.getUndoSqlWriter().newLine();
+            }
 
             final long now = currentTimeMillis();
             if (redoWriter.getBuffers().incrementAndGet() % config.getWriteSqlLogFileFlushOnBatch() == 0
                     || ((now - redoWriter.getLastFlushTime()) >= config.getWriteSqlLogFlushOnMillis())) {
-                redoWriter.getRedoSqlWriter().flush();
+                if (isRedoSqlLog) {
+                    redoWriter.getRedoSqlWriter().flush();
+                } else {
+                    redoWriter.getUndoSqlWriter().flush();
+                }
                 redoWriter.setLastFlushTime(now);
             }
         } catch (Exception e) {

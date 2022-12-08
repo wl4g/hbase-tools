@@ -79,7 +79,7 @@ public abstract class PhoenixTableCleaner extends BaseToolRunner {
     @Override
     protected void writeUndoSqlLog(Map<String, Object> record) {
         String deleteRowKey = (String) record.get(config.getRowKey().getName());
-        doWriteSqlLog(() -> deleteRowKey, () -> {
+        doWriteSqlLog(false, () -> deleteRowKey, () -> {
             StringBuilder undoSql = new StringBuilder(
                     format("upsert into \"%s\".\"%s\" (", config.getTableNamespace(), config.getTableName()));
             safeMap(record).forEach((columnName, value) -> {

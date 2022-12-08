@@ -1,8 +1,8 @@
 # Phoenix tools for Cleaner
 
-## Quick start (example):
+## Quick start
 
-- Execution cleaner (Generate fake data based on characteristics such as historical sample values)
+- Execution cleaner example:
 
 ```bash
 java -jar phoenix-tools-1.0.0-bin.jar \

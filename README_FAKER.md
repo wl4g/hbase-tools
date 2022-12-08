@@ -1,8 +1,8 @@
 # Phoenix tools for Faker
 
-## Quick start (example):
+## Quick start
 
-- Execution faker (Generate fake data based on characteristics such as historical sample values)
+- Execution faker Example: (generate fake data based on characteristics such as historical sample values)
 
 ```bash
 java -jar phoenix-tools-1.0.0-bin.jar \

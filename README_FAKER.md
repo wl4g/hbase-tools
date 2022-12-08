@@ -35,15 +35,15 @@ java -jar phoenix-tools-1.0.0-bin.jar \
 
 ```bash
 # Filter the rowKey date that generated fake data records 
-java -jar phoenix-tool-1.0.0-bin.jar | grep upsert | awk -F ' ' '{print $15}' | awk -F "'" '{print $4}' | sed s/11111277,ELE_P,134,01,//g
+java -jar phoenix-tools-1.0.0-bin.jar | grep upsert | awk -F ' ' '{print $15}' | awk -F "'" '{print $4}' | sed s/11111277,ELE_P,134,01,//g
 
 # Filter processed statistics.
-java -jar phoenix-tool-1.0.0-bin.jar | grep Processed
+java -jar phoenix-tools-1.0.0-bin.jar | grep Processed
 ```
 
 ## Configuration
 
-- `--tools.workspaceDir`: The directory of the workspace, default is: `${HOME}/.phoenix-tool/`. Default metadata file: `{workspaceDir}/meta.csv`, undo SQL dir: `{workspaceDir}/undo-{timestamp}/` and `{workspaceDir}/redo-{timestamp}/`
+- `--tools.workspaceDir`: The directory of the workspace, default is: `${HOME}/.phoenix-tools/`. Default metadata file: `{workspaceDir}/meta.csv`, undo SQL dir: `{workspaceDir}/undo-{timestamp}/` and `{workspaceDir}/redo-{timestamp}/`
 
 - `--tools.writeSqlLogFileFlushOnBatch`: How many batch size to undo/redo sql log file buffered writes to SQL to disk every. default is: `1024`.
 

@@ -28,7 +28,7 @@ java -jar phoenix-tools-1.0.0-bin.jar \
 
 ```bash
 # Filter processed statistics.
-java -jar phoenix-tool-1.0.0-bin.jar | grep Processed
+java -jar phoenix-tools-1.0.0-bin.jar | grep Processed
 ```
 
 ## Configuration

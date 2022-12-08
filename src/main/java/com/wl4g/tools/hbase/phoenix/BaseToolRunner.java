@@ -2,6 +2,7 @@ package com.wl4g.tools.hbase.phoenix;
 
 import static com.wl4g.infra.common.collection.CollectionUtils2.safeList;
 import static com.wl4g.infra.common.collection.CollectionUtils2.safeMap;
+import static com.wl4g.infra.common.lang.Assert2.hasTextOf;
 import static com.wl4g.infra.common.lang.StringUtils2.eqIgnCase;
 import static java.lang.String.format;
 import static java.lang.System.currentTimeMillis;
@@ -153,12 +154,21 @@ public abstract class BaseToolRunner implements InitializingBean, DisposableBean
     protected abstract void executeUpdateToHTable(Map<String, Object> record);
 
     protected void writeRedoSqlLog(Map<String, Object> record, String redoSql) {
-        try {
-            String newRowKey = (String) record.get(config.getRowKey().getName());
-            SqlLogFileWriter redoWriter = obtainSqlLogFileWriter(newRowKey);
-            log.debug("Redo sql: {}", redoSql);
+        String newRowKey = (String) record.get(config.getRowKey().getName());
+        doWriteSqlLog(newRowKey, redoSql);
+    }
 
-            redoWriter.getRedoSqlWriter().append(redoSql.concat(";"));
+    protected abstract void writeUndoSqlLog(Map<String, Object> record);
+
+    protected void doWriteSqlLog(String rowKey, String sql) {
+        try {
+            hasTextOf(rowKey, "rowKey");
+            hasTextOf(sql, "sql");
+
+            SqlLogFileWriter redoWriter = obtainSqlLogFileWriter(rowKey);
+            log.debug("write sql: {}", sql);
+
+            redoWriter.getRedoSqlWriter().append(sql.concat(";"));
             redoWriter.getRedoSqlWriter().newLine();
 
             final long now = currentTimeMillis();
@@ -169,14 +179,12 @@ public abstract class BaseToolRunner implements InitializingBean, DisposableBean
             }
         } catch (Exception e) {
             if (config.isErrorContinue()) {
-                log.warn(format("Unable write to undo sql of : %s", record), e);
+                log.warn(format("Unable write to redo/undo sql of : %s", rowKey), e);
             } else {
                 throw new IllegalStateException(e);
             }
         }
     }
-
-    protected abstract void writeUndoSqlLog(Map<String, Object> record);
 
     protected SqlLogFileWriter obtainSqlLogFileWriter(String rowKey) throws IOException {
         final Map<String, String> rowKeyParts = config.getRowKey().from(rowKey);

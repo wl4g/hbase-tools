@@ -82,8 +82,27 @@ public abstract class PhoenixTableCleaner extends BaseToolRunner {
 
     @Override
     protected void writeUndoSqlLog(Map<String, Object> record) {
-        // TODO Auto-generated method stub
-
+        StringBuilder upsertSql = new StringBuilder(
+                format("upsert into \"%s\".\"%s\" (", config.getTableNamespace(), config.getTableName()));
+        safeMap(record).forEach((columnName, value) -> {
+            upsertSql.append("\"");
+            upsertSql.append(columnName);
+            upsertSql.append("\",");
+        });
+        upsertSql.delete(upsertSql.length() - 1, upsertSql.length());
+        upsertSql.append(") values (");
+        safeMap(record).forEach((columnName, value) -> {
+            String symbol = "'";
+            if (nonNull(value) && value instanceof Number) {
+                symbol = "";
+            }
+            upsertSql.append(symbol);
+            upsertSql.append(value);
+            upsertSql.append(symbol);
+            upsertSql.append(",");
+        });
+        upsertSql.delete(upsertSql.length() - 1, upsertSql.length());
+        upsertSql.append(")");
     }
 
 }

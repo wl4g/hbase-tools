@@ -3,7 +3,6 @@ package com.wl4g.tools.hbase.phoenix.fake;
 import static com.wl4g.infra.common.collection.CollectionUtils2.safeMap;
 import static com.wl4g.infra.common.lang.DateUtils2.formatDate;
 import static java.lang.String.format;
-import static java.lang.System.currentTimeMillis;
 import static java.util.Objects.nonNull;
 import static org.apache.commons.lang3.time.DateUtils.parseDate;
 
@@ -144,30 +143,10 @@ public abstract class PhoenixTableFaker extends BaseToolRunner {
 
     @Override
     protected void writeUndoSqlLog(Map<String, Object> newRecord) {
-        try {
-            String newRowKey = (String) newRecord.get(config.getRowKey().getName());
-            SqlLogFileWriter undoWriter = obtainSqlLogFileWriter(newRowKey);
-
-            String undoSql = format("delete from \"%s\".\"%s\" where \"%s\"='%s';", config.getTableNamespace(),
-                    config.getTableName(), config.getRowKey().getName(), newRowKey);
-            log.debug("Undo sql: {}", undoSql);
-
-            undoWriter.getUndoSqlWriter().append(undoSql);
-            undoWriter.getUndoSqlWriter().newLine();
-
-            final long now = currentTimeMillis();
-            if (undoWriter.getBuffers().incrementAndGet() % config.getWriteSqlLogFileFlushOnBatch() == 0
-                    || ((now - undoWriter.getLastFlushTime()) >= config.getWriteSqlLogFlushOnMillis())) {
-                undoWriter.getUndoSqlWriter().flush();
-                undoWriter.setLastFlushTime(now);
-            }
-        } catch (Exception e) {
-            if (config.isErrorContinue()) {
-                log.warn(format("Unable write to undo sql of : %s", newRecord), e);
-            } else {
-                throw new IllegalStateException(e);
-            }
-        }
+        String newRowKey = (String) newRecord.get(config.getRowKey().getName());
+        String undoSql = format("delete from \"%s\".\"%s\" where \"%s\"='%s';", config.getTableNamespace(), config.getTableName(),
+                config.getRowKey().getName(), newRowKey);
+        doWriteSqlLog(newRowKey, undoSql);
     }
 
 }

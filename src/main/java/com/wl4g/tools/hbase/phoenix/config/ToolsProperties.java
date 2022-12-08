@@ -51,11 +51,11 @@ public class ToolsProperties implements InitializingBean {
 
     private File workspaceDir = new File(USER_HOME + "/.phoenix-tools/");
     private int writeSqlLogFileFlushOnBatch = 1024;
-    private int writeSqlLogFlushOnMillis = 500;
+    private int writeSqlLogFlushOnMillis = 2000;
     private String tableNamespace = "safeclound";
     private String tableName = "tb_ammeter";
     private boolean dryRun = true;
-    private int threadPools = 1;
+    private int threadPools = 2;
     private int maxLimit = 1440 * 10;
     private boolean errorContinue = true;
     private long awaitSeconds = Duration.ofMillis(30).getSeconds();

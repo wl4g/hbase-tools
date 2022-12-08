@@ -4,7 +4,7 @@
 
 ## Quick start (example):
 
-### Initial example data:
+### Init data example:
 
 - [mysql-init.sql](testdata/mysql-init.sql)
 

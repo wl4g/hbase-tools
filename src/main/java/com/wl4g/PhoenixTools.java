@@ -19,17 +19,17 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /**
- * {@link PhoenixFakeTool}
+ * {@link PhoenixTools}
  * 
  * @author James Wong
  * @version 2022-10-22
  * @since v1.0.0
  */
 @SpringBootApplication
-public class PhoenixFakeTool {
+public class PhoenixTools {
 
     public static void main(String[] args) {
-        SpringApplication.run(PhoenixFakeTool.class, args);
+        SpringApplication.run(PhoenixTools.class, args);
     }
 
 }

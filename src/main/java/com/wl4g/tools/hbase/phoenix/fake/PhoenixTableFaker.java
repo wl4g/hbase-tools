@@ -3,54 +3,31 @@ package com.wl4g.tools.hbase.phoenix.fake;
 import static com.wl4g.infra.common.collection.CollectionUtils2.safeList;
 import static com.wl4g.infra.common.collection.CollectionUtils2.safeMap;
 import static com.wl4g.infra.common.lang.DateUtils2.formatDate;
-import static com.wl4g.infra.common.lang.StringUtils2.eqIgnCase;
 import static java.lang.String.format;
-import static java.lang.System.currentTimeMillis;
-import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
 import static org.apache.commons.lang3.time.DateUtils.parseDate;
 
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.io.Reader;
 import java.text.ParseException;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
-import org.springframework.beans.factory.DisposableBean;
-import org.springframework.beans.factory.InitializingBean;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
-import org.springframework.jdbc.core.JdbcTemplate;
 
-import com.wl4g.tools.hbase.phoenix.config.ToolsProperties;
-import com.wl4g.tools.hbase.phoenix.config.ToolsProperties.RunnerProvider;
+import com.wl4g.tools.hbase.phoenix.BaseToolRunner;
 import com.wl4g.tools.hbase.phoenix.util.DateTool;
 import com.wl4g.tools.hbase.phoenix.util.RowKeySpec;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Abstract fake records handler.
+ * Base fake handler.
  * 
  * @author James Wong
  * @version 2022-10-22
@@ -58,97 +35,14 @@ import lombok.extern.slf4j.Slf4j;
  * @see https://www.baeldung.com/apache-commons-csv
  */
 @Slf4j
-public abstract class PhoenixTableFaker implements InitializingBean, DisposableBean, ApplicationRunner {
+public abstract class PhoenixTableFaker extends BaseToolRunner {
 
-    protected @Autowired ToolsProperties config;
-    protected @Autowired JdbcTemplate jdbcTemplate;
-    protected final AtomicInteger totalOfAll = new AtomicInteger(0); // e.g:devices-total
-    protected final AtomicInteger completedOfAll = new AtomicInteger(0);
-    protected ExecutorService executor;
-    protected String rowKeyDatePattern;
-    protected Date fakeStartDate;
-    protected Date fakeEndDate;
-    protected Map<String, SqlLogFileWriter> sqlLogFileWriters = new ConcurrentHashMap<>(1024);
-
-    @Override
-    public void afterPropertiesSet() throws Exception {
-        if (!isActive()) {
-            return;
-        }
-
-        final String prefix = getClass().getSimpleName();
-        final AtomicInteger counter = new AtomicInteger(0);
-        this.executor = Executors.newFixedThreadPool((config.getThreadPools() <= 1) ? 1 : config.getThreadPools(),
-                r -> new Thread(r, prefix.concat("-" + counter.incrementAndGet())));
-
-        this.rowKeyDatePattern = config.getRowKey().getVariables().get(RowKeySpec.DATE_PATTERN_KEY).getName();
-
-        // 若为省略日期写法, 则需自动补0
-        String complement = "", startDate = config.getStartDate(), endDate = config.getEndDate();
-        for (int i = 0; i < rowKeyDatePattern.length() - config.getStartDate().length(); i++) {
-            complement += "0";
-        }
-        complement = "";
-        for (int i = 0; i < rowKeyDatePattern.length() - config.getEndDate().length(); i++) {
-            complement += "0";
-        }
-        this.fakeStartDate = parseDate(startDate += complement, rowKeyDatePattern);
-        this.fakeEndDate = parseDate(endDate += complement, rowKeyDatePattern);
+    public Date getFakeStartDate() {
+        return targetStartDate;
     }
 
-    @Override
-    public void destroy() throws Exception {
-        if (!isActive()) {
-            return;
-        }
-
-        if (!executor.isShutdown()) {
-            executor.shutdown();
-            log.info("Waiting for all tasks to complete, timeout is {}sec ...", config.getAwaitSeconds());
-            int count = 0, total = (int) (config.getAwaitSeconds() * 10); // 控制超时时强制结束
-            boolean completed = false; // 控制所有执行成功时立即结束
-            while (++count < total && !completed) {
-                completed = executor.awaitTermination(100, TimeUnit.MILLISECONDS);
-            }
-            if (!completed) {
-                // see:https://blog.csdn.net/BIT_666/article/details/125180030
-                // 如果所有任务在关闭后都已完成，则返回true，请注意，除非首先调用了shutdown或shutdownNow，否则isTerminated永远为false。
-                // executor.isTerminated();
-                //
-                // 优雅停止接收新task，正在运行的task继续运行，立即返回
-                // executor.shutdown();
-                //
-                // 立即停止接收新task，终止正在运行的task，立即返回正在等待执行的tasks(注:不是正在运行的tasks).
-                List<Runnable> paddingRunTasks = executor.shutdownNow();
-                log.info("Some processed completed successful of {}/{}, padding tasks: {}", completedOfAll.get(),
-                        totalOfAll.get(), paddingRunTasks);
-            } else {
-                log.info("Successfully processed all completed of {}/{}", completedOfAll.get(), totalOfAll.get());
-            }
-        }
-
-        safeMap(sqlLogFileWriters).forEach((key, sqlLogWriter) -> {
-            try {
-                if (nonNull(sqlLogWriter.getUndoSqlWriter())) {
-                    sqlLogWriter.getUndoSqlWriter().close();
-                }
-            } catch (Exception e) {
-                log.error(format("Unable to closing undo writer for '%s'", key), e);
-            }
-            try {
-                if (nonNull(sqlLogWriter.getRedoSqlWriter())) {
-                    sqlLogWriter.getRedoSqlWriter().close();
-                }
-            } catch (Exception e) {
-                log.error(format("Unable to closing redo writer for '%s'", key), e);
-            }
-        });
-    }
-
-    protected abstract RunnerProvider provider();
-
-    private boolean isActive() {
-        return provider() == config.getProvider();
+    public Date getFakeEndDate() {
+        return targetEndDate;
     }
 
     @Override
@@ -165,10 +59,10 @@ public abstract class PhoenixTableFaker implements InitializingBean, DisposableB
             for (CSVRecord record : metaRecords) {
                 // Make sample start/end rowKey.
                 final String sampleStartDateString = formatDate(
-                        getOffsetDate(fakeStartDate, config.getFaker().getSampleLastDatePattern(),
+                        getOffsetDate(getFakeStartDate(), config.getFaker().getSampleLastDatePattern(),
                                 -config.getFaker().getSampleLastDateAmount()), // MARK1<->MARK2
                         rowKeyDatePattern);
-                final String sampleEndDateString = formatDate(getOffsetDate(fakeEndDate,
+                final String sampleEndDateString = formatDate(getOffsetDate(getFakeEndDate(),
                         config.getFaker().getSampleLastDatePattern(), -config.getFaker().getSampleLastDateAmount()),
                         rowKeyDatePattern);
                 final String sampleStartRowKey = config.getRowKey().to(safeMap(record.toMap()), sampleStartDateString);
@@ -213,131 +107,6 @@ public abstract class PhoenixTableFaker implements InitializingBean, DisposableB
 
     protected Date getOffsetDate(Date date, String datePattern, int dateAmount) throws ParseException {
         return DateTool.getOffsetDate(date, datePattern, dateAmount);
-    }
-
-    // Save to HBase table.
-    protected void writeToHTable(Map<String, Object> newRecord) {
-        StringBuilder upsertSql = new StringBuilder(
-                format("upsert into \"%s\".\"%s\" (", config.getTableNamespace(), config.getTableName()));
-        safeMap(newRecord).forEach((columnName, value) -> {
-            upsertSql.append("\"");
-            upsertSql.append(columnName);
-            upsertSql.append("\",");
-        });
-        upsertSql.delete(upsertSql.length() - 1, upsertSql.length());
-        upsertSql.append(") values (");
-        safeMap(newRecord).forEach((columnName, value) -> {
-            String symbol = "'";
-            if (nonNull(value) && value instanceof Number) {
-                symbol = "";
-            }
-            upsertSql.append(symbol);
-            upsertSql.append(value);
-            upsertSql.append(symbol);
-            upsertSql.append(",");
-        });
-        upsertSql.delete(upsertSql.length() - 1, upsertSql.length());
-        upsertSql.append(")");
-
-        log.info("Executing: {}", upsertSql);
-        if (!config.isDryRun()) {
-            jdbcTemplate.execute(upsertSql.toString());
-
-            // Save redo SQL to log files.
-            writeRedoSqlLog(newRecord, upsertSql.toString());
-
-            // Save undo SQL to log files.
-            writeUndoSqlLog(newRecord);
-        }
-        completedOfAll.incrementAndGet();
-    }
-
-    protected void writeUndoSqlLog(Map<String, Object> newRecord) {
-        try {
-            String newRowKey = (String) newRecord.get(config.getRowKey().getName());
-            SqlLogFileWriter undoWriter = obtainSqlLogFileWriter(newRowKey);
-
-            String undoSql = format("delete from \"%s\".\"%s\" where \"%s\"='%s';", config.getTableNamespace(),
-                    config.getTableName(), config.getRowKey().getName(), newRowKey);
-            log.debug("Undo sql: {}", undoSql);
-
-            undoWriter.getUndoSqlWriter().append(undoSql);
-            undoWriter.getUndoSqlWriter().newLine();
-
-            final long now = currentTimeMillis();
-            if (undoWriter.getBuffers().incrementAndGet() % config.getWriteSqlLogFileFlushOnBatch() == 0
-                    || ((now - undoWriter.getLastFlushTime()) >= config.getWriteSqlLogFlushOnMillis())) {
-                undoWriter.getUndoSqlWriter().flush();
-                undoWriter.setLastFlushTime(now);
-            }
-        } catch (Exception e) {
-            if (config.isErrorContinue()) {
-                log.warn(format("Unable write to undo sql of : %s", newRecord), e);
-            } else {
-                throw new IllegalStateException(e);
-            }
-        }
-    }
-
-    protected void writeRedoSqlLog(Map<String, Object> newRecord, String redoSql) {
-        try {
-            String newRowKey = (String) newRecord.get(config.getRowKey().getName());
-            SqlLogFileWriter redoWriter = obtainSqlLogFileWriter(newRowKey);
-            log.debug("Redo sql: {}", redoSql);
-
-            redoWriter.getRedoSqlWriter().append(redoSql.concat(";"));
-            redoWriter.getRedoSqlWriter().newLine();
-
-            final long now = currentTimeMillis();
-            if (redoWriter.getBuffers().incrementAndGet() % config.getWriteSqlLogFileFlushOnBatch() == 0
-                    || ((now - redoWriter.getLastFlushTime()) >= config.getWriteSqlLogFlushOnMillis())) {
-                redoWriter.getRedoSqlWriter().flush();
-                redoWriter.setLastFlushTime(now);
-            }
-        } catch (Exception e) {
-            if (config.isErrorContinue()) {
-                log.warn(format("Unable write to undo sql of : %s", newRecord), e);
-            } else {
-                throw new IllegalStateException(e);
-            }
-        }
-    }
-
-    private SqlLogFileWriter obtainSqlLogFileWriter(String rowKey) throws IOException {
-        final Map<String, String> sampleStartRowKeyParts = config.getRowKey().from(rowKey);
-        final String sqlLogKey = safeMap(sampleStartRowKeyParts).entrySet()
-                .stream()
-                .filter(e -> !eqIgnCase(e.getKey(), RowKeySpec.DATE_PATTERN_KEY))
-                .map(e -> e.getValue())
-                .collect(Collectors.joining("-"));
-
-        SqlLogFileWriter sqlLogWriter = sqlLogFileWriters.get(sqlLogKey);
-        if (isNull(sqlLogWriter)) {
-            synchronized (this) {
-                sqlLogWriter = sqlLogFileWriters.get(sqlLogKey);
-                if (isNull(sqlLogWriter)) {
-                    final BufferedWriter undoSqlWriter = new BufferedWriter(
-                            new FileWriter(new File(config.getUndoSqlDir(), sqlLogKey.concat(".sql"))));
-                    final BufferedWriter redoSqlWriter = new BufferedWriter(
-                            new FileWriter(new File(config.getRedoSqlDir(), sqlLogKey.concat(".sql"))));
-                    sqlLogFileWriters.put(sqlLogKey,
-                            sqlLogWriter = new SqlLogFileWriter(undoSqlWriter, redoSqlWriter, new AtomicLong(0), 0L));
-                }
-            }
-        }
-
-        return sqlLogWriter;
-    }
-
-    @Getter
-    @Setter
-    @ToString
-    @AllArgsConstructor
-    public static class SqlLogFileWriter {
-        private BufferedWriter undoSqlWriter;
-        private BufferedWriter redoSqlWriter;
-        private AtomicLong buffers;
-        private long lastFlushTime;
     }
 
 }

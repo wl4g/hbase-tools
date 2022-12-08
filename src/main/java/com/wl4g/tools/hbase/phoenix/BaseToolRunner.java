@@ -1,8 +1,6 @@
 package com.wl4g.tools.hbase.phoenix;
 
-import static com.wl4g.infra.common.collection.CollectionUtils2.safeList;
 import static com.wl4g.infra.common.collection.CollectionUtils2.safeMap;
-import static com.wl4g.infra.common.lang.DateUtils2.formatDate;
 import static com.wl4g.infra.common.lang.StringUtils2.eqIgnCase;
 import static java.lang.String.format;
 import static java.lang.System.currentTimeMillis;
@@ -12,11 +10,8 @@ import static org.apache.commons.lang3.time.DateUtils.parseDate;
 
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.Reader;
-import java.text.ParseException;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -28,19 +23,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVParser;
-import org.apache.commons.csv.CSVRecord;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.wl4g.tools.hbase.phoenix.config.ToolsProperties;
 import com.wl4g.tools.hbase.phoenix.config.ToolsProperties.RunnerProvider;
-import com.wl4g.tools.hbase.phoenix.util.DateTool;
 import com.wl4g.tools.hbase.phoenix.util.RowKeySpec;
 
 import lombok.AllArgsConstructor;
@@ -50,7 +40,7 @@ import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Abstract fake records handler.
+ * Abstract based tools handler.
  * 
  * @author James Wong
  * @version 2022-10-22
@@ -67,6 +57,8 @@ public abstract class BaseToolRunner implements InitializingBean, DisposableBean
     protected ExecutorService executor;
     protected String rowKeyDatePattern;
     protected Map<String, SqlLogFileWriter> sqlLogFileWriters = new ConcurrentHashMap<>(1024);
+    protected Date targetStartDate;
+    protected Date targetEndDate;
 
     @Override
     public void afterPropertiesSet() throws Exception {
@@ -90,8 +82,8 @@ public abstract class BaseToolRunner implements InitializingBean, DisposableBean
         for (int i = 0; i < rowKeyDatePattern.length() - config.getEndDate().length(); i++) {
             complement += "0";
         }
-        this.fakeStartDate = parseDate(startDate += complement, rowKeyDatePattern);
-        this.fakeEndDate = parseDate(endDate += complement, rowKeyDatePattern);
+        this.targetStartDate = parseDate(startDate += complement, rowKeyDatePattern);
+        this.targetEndDate = parseDate(endDate += complement, rowKeyDatePattern);
     }
 
     @Override

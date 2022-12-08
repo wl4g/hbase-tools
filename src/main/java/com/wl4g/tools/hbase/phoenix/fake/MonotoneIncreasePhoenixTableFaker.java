@@ -160,8 +160,8 @@ public class MonotoneIncreasePhoenixTableFaker extends PhoenixTableFaker {
             final Map<String, String> sampleRowKeyParts = config.getRowKey().from(sampleRowKey);
 
             // 从 fakeEndDate 开始向后取任意时间点作为结束时间(这里硬编码为1个周期),
-            final Date upperLimitStartDate = getOffsetDate(fakeEndDate, config.getFaker().getSampleLastDatePattern(), 0);
-            final Date upperLimitEndDate = getOffsetDate(fakeEndDate, config.getFaker().getSampleLastDatePattern(),
+            final Date upperLimitStartDate = getOffsetDate(getFakeEndDate(), config.getFaker().getSampleLastDatePattern(), 0);
+            final Date upperLimitEndDate = getOffsetDate(getFakeEndDate(), config.getFaker().getSampleLastDatePattern(),
                     config.getFaker().getSampleLastDateAmount() * 1);
             final String upperLimitStartRowKey = generateRowKey(sampleRowKeyParts, upperLimitStartDate);
             final String upperLimitEndRowKey = generateRowKey(sampleRowKeyParts, upperLimitEndDate);
@@ -223,9 +223,9 @@ public class MonotoneIncreasePhoenixTableFaker extends PhoenixTableFaker {
             final Map<String, String> sampleRowKeyParts = config.getRowKey().from(sampleRowKey);
 
             // 从 fakeStartDate 开始向前取任意时间点作为开始时间(这里硬编码为1个周期),
-            final Date lowerLimitStartDate = getOffsetDate(fakeStartDate, config.getFaker().getSampleLastDatePattern(),
+            final Date lowerLimitStartDate = getOffsetDate(getFakeStartDate(), config.getFaker().getSampleLastDatePattern(),
                     config.getFaker().getSampleLastDateAmount() * -1);
-            final Date lowerLimitEndDate = getOffsetDate(fakeStartDate, config.getFaker().getSampleLastDatePattern(), 0);
+            final Date lowerLimitEndDate = getOffsetDate(getFakeStartDate(), config.getFaker().getSampleLastDatePattern(), 0);
             final String lowerLimitStartRowKey = generateRowKey(sampleRowKeyParts, lowerLimitStartDate);
             final String lowerLimitEndRowKey = generateRowKey(sampleRowKeyParts, lowerLimitEndDate);
 

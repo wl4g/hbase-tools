@@ -61,17 +61,18 @@ public abstract class PhoenixTableCleaner extends BaseToolRunner {
     protected abstract Runnable newProcessTask(String deleteStartRowKey, String deleteEndRowKey);
 
     // Delete update to HBase table.
-    protected void deleteToHTable(Map<String, Object> newRecord) {
+    @Override
+    protected void executeUpdateToHTable(Map<String, Object> deleteRecord) {
         StringBuilder deleteSql = new StringBuilder(
                 format("upsert into \"%s\".\"%s\" (", config.getTableNamespace(), config.getTableName()));
-        safeMap(newRecord).forEach((columnName, value) -> {
+        safeMap(deleteRecord).forEach((columnName, value) -> {
             deleteSql.append("\"");
             deleteSql.append(columnName);
             deleteSql.append("\",");
         });
         deleteSql.delete(deleteSql.length() - 1, deleteSql.length());
         deleteSql.append(") values (");
-        safeMap(newRecord).forEach((columnName, value) -> {
+        safeMap(deleteRecord).forEach((columnName, value) -> {
             String symbol = "'";
             if (nonNull(value) && value instanceof Number) {
                 symbol = "";
@@ -89,12 +90,18 @@ public abstract class PhoenixTableCleaner extends BaseToolRunner {
             jdbcTemplate.execute(deleteSql.toString());
 
             // Save redo SQL to log files.
-            writeRedoSqlLog(newRecord, deleteSql.toString());
+            writeRedoSqlLog(deleteRecord, deleteSql.toString());
 
             // Save undo SQL to log files.
-            writeUndoSqlLog(newRecord);
+            writeUndoSqlLog(deleteRecord);
         }
         completedOfAll.incrementAndGet();
+    }
+
+    @Override
+    protected void writeUndoSqlLog(Map<String, Object> record) {
+        // TODO Auto-generated method stub
+
     }
 
 }

@@ -91,6 +91,9 @@
     <profiles>
         <profile>
             <id>build:springjar</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
             <build>
                 <plugins>
                     <plugin>

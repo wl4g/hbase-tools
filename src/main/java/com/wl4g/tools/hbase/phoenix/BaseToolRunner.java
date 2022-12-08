@@ -141,7 +141,7 @@ public abstract class BaseToolRunner implements InitializingBean, DisposableBean
     @Override
     public void run(ApplicationArguments args) throws Exception {
         if (!isActive()) {
-            log.warn("Skip execute of {} is inactive !", provider());
+            log.warn("No run execute of {} is inactive !", provider());
             return;
         }
         execute();

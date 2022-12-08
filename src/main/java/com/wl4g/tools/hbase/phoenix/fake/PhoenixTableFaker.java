@@ -1,6 +1,5 @@
 package com.wl4g.tools.hbase.phoenix.fake;
 
-import static com.wl4g.infra.common.collection.CollectionUtils2.safeList;
 import static com.wl4g.infra.common.collection.CollectionUtils2.safeMap;
 import static com.wl4g.infra.common.lang.DateUtils2.formatDate;
 import static java.lang.String.format;
@@ -80,12 +79,7 @@ public abstract class PhoenixTableFaker extends BaseToolRunner {
     protected abstract Runnable newProcessTask(String sampleStartRowKey, String sampleEndRowKey);
 
     protected List<Map<String, Object>> fetchSampleRecords(String sampleStartRowKey, String sampleEndRowKey) {
-        // e.g: 11111111,ELE_P,111,08,20170729165254063
-        String queryRawSql = format(
-                "select * from \"%s\".\"%s\" where \"ROW\">='%s' and \"ROW\"<='%s' order by \"ROW\" asc limit %s",
-                config.getTableNamespace(), config.getTableName(), sampleStartRowKey, sampleEndRowKey, config.getMaxLimit());
-        log.info("Fetching: {}", queryRawSql);
-        return safeList(jdbcTemplate.queryForList(queryRawSql));
+        return fetchRecords(sampleStartRowKey, sampleEndRowKey);
     }
 
     protected String generateFakeRowKey(final String sampleRowKey) throws ParseException {
@@ -107,6 +101,43 @@ public abstract class PhoenixTableFaker extends BaseToolRunner {
 
     protected Date getOffsetDate(Date date, String datePattern, int dateAmount) throws ParseException {
         return DateTool.getOffsetDate(date, datePattern, dateAmount);
+    }
+
+    // Save to HBase table.
+    protected void writeToHTable(Map<String, Object> newRecord) {
+        StringBuilder upsertSql = new StringBuilder(
+                format("upsert into \"%s\".\"%s\" (", config.getTableNamespace(), config.getTableName()));
+        safeMap(newRecord).forEach((columnName, value) -> {
+            upsertSql.append("\"");
+            upsertSql.append(columnName);
+            upsertSql.append("\",");
+        });
+        upsertSql.delete(upsertSql.length() - 1, upsertSql.length());
+        upsertSql.append(") values (");
+        safeMap(newRecord).forEach((columnName, value) -> {
+            String symbol = "'";
+            if (nonNull(value) && value instanceof Number) {
+                symbol = "";
+            }
+            upsertSql.append(symbol);
+            upsertSql.append(value);
+            upsertSql.append(symbol);
+            upsertSql.append(",");
+        });
+        upsertSql.delete(upsertSql.length() - 1, upsertSql.length());
+        upsertSql.append(")");
+
+        log.info("Executing: {}", upsertSql);
+        if (!config.isDryRun()) {
+            jdbcTemplate.execute(upsertSql.toString());
+
+            // Save redo SQL to log files.
+            writeRedoSqlLog(newRecord, upsertSql.toString());
+
+            // Save undo SQL to log files.
+            writeUndoSqlLog(newRecord);
+        }
+        completedOfAll.incrementAndGet();
     }
 
 }

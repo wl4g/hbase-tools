@@ -1,5 +1,6 @@
 package com.wl4g.tools.hbase.phoenix;
 
+import static com.wl4g.infra.common.collection.CollectionUtils2.safeList;
 import static com.wl4g.infra.common.collection.CollectionUtils2.safeMap;
 import static com.wl4g.infra.common.lang.StringUtils2.eqIgnCase;
 import static java.lang.String.format;
@@ -65,7 +66,6 @@ public abstract class BaseToolRunner implements InitializingBean, DisposableBean
         if (!isActive()) {
             return;
         }
-
         final String prefix = getClass().getSimpleName();
         final AtomicInteger counter = new AtomicInteger(0);
         this.executor = Executors.newFixedThreadPool((config.getThreadPools() <= 1) ? 1 : config.getThreadPools(),
@@ -141,41 +141,13 @@ public abstract class BaseToolRunner implements InitializingBean, DisposableBean
         return provider() == config.getProvider();
     }
 
-    // Save to HBase table.
-    protected void writeToHTable(Map<String, Object> newRecord) {
-        StringBuilder upsertSql = new StringBuilder(
-                format("upsert into \"%s\".\"%s\" (", config.getTableNamespace(), config.getTableName()));
-        safeMap(newRecord).forEach((columnName, value) -> {
-            upsertSql.append("\"");
-            upsertSql.append(columnName);
-            upsertSql.append("\",");
-        });
-        upsertSql.delete(upsertSql.length() - 1, upsertSql.length());
-        upsertSql.append(") values (");
-        safeMap(newRecord).forEach((columnName, value) -> {
-            String symbol = "'";
-            if (nonNull(value) && value instanceof Number) {
-                symbol = "";
-            }
-            upsertSql.append(symbol);
-            upsertSql.append(value);
-            upsertSql.append(symbol);
-            upsertSql.append(",");
-        });
-        upsertSql.delete(upsertSql.length() - 1, upsertSql.length());
-        upsertSql.append(")");
-
-        log.info("Executing: {}", upsertSql);
-        if (!config.isDryRun()) {
-            jdbcTemplate.execute(upsertSql.toString());
-
-            // Save redo SQL to log files.
-            writeRedoSqlLog(newRecord, upsertSql.toString());
-
-            // Save undo SQL to log files.
-            writeUndoSqlLog(newRecord);
-        }
-        completedOfAll.incrementAndGet();
+    protected List<Map<String, Object>> fetchRecords(String startRowKey, String endRowKey) {
+        // e.g: 11111111,ELE_P,111,08,20170729165254063
+        String queryRawSql = format(
+                "select * from \"%s\".\"%s\" where \"ROW\">='%s' and \"ROW\"<='%s' order by \"ROW\" asc limit %s",
+                config.getTableNamespace(), config.getTableName(), startRowKey, endRowKey, config.getMaxLimit());
+        log.info("Fetching: {}", queryRawSql);
+        return safeList(jdbcTemplate.queryForList(queryRawSql));
     }
 
     protected void writeUndoSqlLog(Map<String, Object> newRecord) {
@@ -230,8 +202,8 @@ public abstract class BaseToolRunner implements InitializingBean, DisposableBean
     }
 
     protected SqlLogFileWriter obtainSqlLogFileWriter(String rowKey) throws IOException {
-        final Map<String, String> sampleStartRowKeyParts = config.getRowKey().from(rowKey);
-        final String sqlLogKey = safeMap(sampleStartRowKeyParts).entrySet()
+        final Map<String, String> rowKeyParts = config.getRowKey().from(rowKey);
+        final String sqlLogKey = safeMap(rowKeyParts).entrySet()
                 .stream()
                 .filter(e -> !eqIgnCase(e.getKey(), RowKeySpec.DATE_PATTERN_KEY))
                 .map(e -> e.getValue())

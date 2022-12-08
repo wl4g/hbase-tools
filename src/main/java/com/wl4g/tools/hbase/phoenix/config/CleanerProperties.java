@@ -31,5 +31,5 @@ import lombok.ToString;
 @Setter
 @ToString
 @NoArgsConstructor
-public class CleanerProperties extends ToolsProperties {
+public class CleanerProperties {
 }

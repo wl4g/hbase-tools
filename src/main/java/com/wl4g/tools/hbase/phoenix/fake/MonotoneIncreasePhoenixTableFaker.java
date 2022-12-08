@@ -121,7 +121,7 @@ public class MonotoneIncreasePhoenixTableFaker extends PhoenixTableFaker {
                         }
                     }
                     try {
-                        writeToHTable(newRecord);
+                        executeUpdateToHTable(newRecord);
                         completed.incrementAndGet();
                     } catch (Exception e) {
                         if (config.isErrorContinue() && !(e instanceof IllegalFakeValueToolsException)) {

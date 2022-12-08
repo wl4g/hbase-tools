@@ -62,34 +62,34 @@ public abstract class PhoenixTableCleaner extends BaseToolRunner {
 
     // Delete update to HBase table.
     protected void deleteToHTable(Map<String, Object> newRecord) {
-        StringBuilder upsertSql = new StringBuilder(
+        StringBuilder deleteSql = new StringBuilder(
                 format("upsert into \"%s\".\"%s\" (", config.getTableNamespace(), config.getTableName()));
         safeMap(newRecord).forEach((columnName, value) -> {
-            upsertSql.append("\"");
-            upsertSql.append(columnName);
-            upsertSql.append("\",");
+            deleteSql.append("\"");
+            deleteSql.append(columnName);
+            deleteSql.append("\",");
         });
-        upsertSql.delete(upsertSql.length() - 1, upsertSql.length());
-        upsertSql.append(") values (");
+        deleteSql.delete(deleteSql.length() - 1, deleteSql.length());
+        deleteSql.append(") values (");
         safeMap(newRecord).forEach((columnName, value) -> {
             String symbol = "'";
             if (nonNull(value) && value instanceof Number) {
                 symbol = "";
             }
-            upsertSql.append(symbol);
-            upsertSql.append(value);
-            upsertSql.append(symbol);
-            upsertSql.append(",");
+            deleteSql.append(symbol);
+            deleteSql.append(value);
+            deleteSql.append(symbol);
+            deleteSql.append(",");
         });
-        upsertSql.delete(upsertSql.length() - 1, upsertSql.length());
-        upsertSql.append(")");
+        deleteSql.delete(deleteSql.length() - 1, deleteSql.length());
+        deleteSql.append(")");
 
-        log.info("Executing: {}", upsertSql);
+        log.info("Executing: {}", deleteSql);
         if (!config.isDryRun()) {
-            jdbcTemplate.execute(upsertSql.toString());
+            jdbcTemplate.execute(deleteSql.toString());
 
             // Save redo SQL to log files.
-            writeRedoSqlLog(newRecord, upsertSql.toString());
+            writeRedoSqlLog(newRecord, deleteSql.toString());
 
             // Save undo SQL to log files.
             writeUndoSqlLog(newRecord);

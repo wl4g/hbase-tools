@@ -150,36 +150,11 @@ public abstract class BaseToolRunner implements InitializingBean, DisposableBean
         return safeList(jdbcTemplate.queryForList(queryRawSql));
     }
 
-    protected void writeUndoSqlLog(Map<String, Object> newRecord) {
+    protected abstract void executeUpdateToHTable(Map<String, Object> record);
+
+    protected void writeRedoSqlLog(Map<String, Object> record, String redoSql) {
         try {
-            String newRowKey = (String) newRecord.get(config.getRowKey().getName());
-            SqlLogFileWriter undoWriter = obtainSqlLogFileWriter(newRowKey);
-
-            String undoSql = format("delete from \"%s\".\"%s\" where \"%s\"='%s';", config.getTableNamespace(),
-                    config.getTableName(), config.getRowKey().getName(), newRowKey);
-            log.debug("Undo sql: {}", undoSql);
-
-            undoWriter.getUndoSqlWriter().append(undoSql);
-            undoWriter.getUndoSqlWriter().newLine();
-
-            final long now = currentTimeMillis();
-            if (undoWriter.getBuffers().incrementAndGet() % config.getWriteSqlLogFileFlushOnBatch() == 0
-                    || ((now - undoWriter.getLastFlushTime()) >= config.getWriteSqlLogFlushOnMillis())) {
-                undoWriter.getUndoSqlWriter().flush();
-                undoWriter.setLastFlushTime(now);
-            }
-        } catch (Exception e) {
-            if (config.isErrorContinue()) {
-                log.warn(format("Unable write to undo sql of : %s", newRecord), e);
-            } else {
-                throw new IllegalStateException(e);
-            }
-        }
-    }
-
-    protected void writeRedoSqlLog(Map<String, Object> newRecord, String redoSql) {
-        try {
-            String newRowKey = (String) newRecord.get(config.getRowKey().getName());
+            String newRowKey = (String) record.get(config.getRowKey().getName());
             SqlLogFileWriter redoWriter = obtainSqlLogFileWriter(newRowKey);
             log.debug("Redo sql: {}", redoSql);
 
@@ -194,12 +169,14 @@ public abstract class BaseToolRunner implements InitializingBean, DisposableBean
             }
         } catch (Exception e) {
             if (config.isErrorContinue()) {
-                log.warn(format("Unable write to undo sql of : %s", newRecord), e);
+                log.warn(format("Unable write to undo sql of : %s", record), e);
             } else {
                 throw new IllegalStateException(e);
             }
         }
     }
+
+    protected abstract void writeUndoSqlLog(Map<String, Object> record);
 
     protected SqlLogFileWriter obtainSqlLogFileWriter(String rowKey) throws IOException {
         final Map<String, String> rowKeyParts = config.getRowKey().from(rowKey);

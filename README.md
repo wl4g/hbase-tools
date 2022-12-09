@@ -56,6 +56,10 @@ git clone git@github.com/wl4g/phoenix-tools.git
 mvn clean package -DskipTests -Pphoenix4 -Pbuild:springjar
 ```
 
+## TODO
+
+- Supports for batch delete cleaner.
+
 ## FAQ
 
 - How the generating GraalVM `relfect-config.json`. Notice: The success passed tested versions are: `graalvm-ce-java8-21.0.0.2`, and the failed versions are: `graalvm-ce-java11-22.1.0`

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.wl4g.dopaas.lcdp.tools.hbase.util;
+package com.wl4g.tools.hbase.util;
 
 import static com.wl4g.infra.common.lang.Assert2.hasTextOf;
 import static com.wl4g.infra.common.reflect.ReflectionUtils2.findMethodNullable;

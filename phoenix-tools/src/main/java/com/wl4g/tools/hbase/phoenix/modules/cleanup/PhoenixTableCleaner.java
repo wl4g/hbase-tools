@@ -58,7 +58,7 @@ public abstract class PhoenixTableCleaner extends BaseToolRunner {
 
     // Delete update to HBase table.
     @Override
-    protected void executeUpdateToHTable(Map<String, Object> deleteRecord) {
+    protected void executeUpdate(Map<String, Object> deleteRecord) {
         final String deleteRowKey = (String) deleteRecord.get(config.getRowKey().getName());
         final String deleteSql = format("delete from \"%s\".\"%s\" where \"%s\"='%s'", config.getTableNamespace(),
                 config.getTableName(), config.getRowKey().getName(), deleteRowKey);

@@ -6,7 +6,7 @@
 
 ```bash
 yarn jar dopaas-lcdp-tools-hbase-migrator-master.jar \
- com.wl4g.dopaas.lcdp.tools.hbase.bulk.HfileBulkToCsvExporter \
+ com.wl4g.tools.hbase.bulk.HfileBulkToCsvExporter \
  -z emr-header-1:2181 \
  -t safeclound.tb_elec_power \
  -s 11111112,ELE_R_P,134,01,20180919110850989 \
@@ -19,7 +19,7 @@ yarn jar dopaas-lcdp-tools-hbase-migrator-master.jar \
 
 ```bash
 yarn jar dopaas-lcdp-tools-hbase-migrator-master.jar \
- com.wl4g.dopaas.lcdp.tools.hbase.bulk.HfileBulkToHdfsExporter \
+ com.wl4g.tools.hbase.bulk.HfileBulkToHdfsExporter \
  -z emr-header-1:2181 \
  -t safeclound.tb_elec_power \
  -s 11111112,ELE_R_P,134,01,20180919110850989 \
@@ -30,7 +30,7 @@ yarn jar dopaas-lcdp-tools-hbase-migrator-master.jar \
 
 ```bash
 yarn jar dopaas-lcdp-tools-hbase-migrator-master \
- com.wl4g.dopaas.lcdp.tools.hbase.bulk.HfileBulkFromHdfsImporter \
+ com.wl4g.tools.hbase.bulk.HfileBulkFromHdfsImporter \
  -z emr-header-1:2181 \
  -t safeclound.tb_elec_power \
  -p /tmp-dopaas/safeclound.tb_elec_power
@@ -42,7 +42,7 @@ yarn jar dopaas-lcdp-tools-hbase-migrator-master \
 
 ```bash
 java -cp dopaas-lcdp-tools-hbase-migrator-master.jar \
- com.wl4g.dopaas.lcdp.tools.hbase.rdbms.SimpleHfileToRdbmsExporter \
+ com.wl4g.tools.hbase.rdbms.SimpleHfileToRdbmsExporter \
  -z emr-header-1:2181 \
  -t safeclound.tb_elec_power \
  -j 'jdbc:mysql://localhost:3306/my_tsdb?useUnicode=true&characterEncoding=utf-8&useSSL=false' \
@@ -64,8 +64,8 @@ spark-submit \
   --executor-cores 4 \
   --executor-memory 2g \
   --jars ossref://my-oss-bucket/sparklib/dopaas-lcdp-tools-hbase-migrator-master-with-dependencies.jar \
-  --class com.wl4g.dopaas.lcdp.tools.hbase.spark.SparkHBaseToHdfsExporter ossref://my-oss-bucket/sparklib/dopaas-lcdp-tools-hbase-migrator-master.jar \
-  com.wl4g.dopaas.lcdp.tools.hbase.bulk.HBaseSparkToHdfsExporter \
+  --class com.wl4g.tools.hbase.spark.SparkHBaseToHdfsExporter ossref://my-oss-bucket/sparklib/dopaas-lcdp-tools-hbase-migrator-master.jar \
+  com.wl4g.tools.hbase.bulk.HBaseSparkToHdfsExporter \
   -s 11111112,ELE_R_P,134,01,20180919110850989 \
   -e 11111112,ELE_R_P,134,01,20180921124050540 \
   -z emr-header-1:2181 \

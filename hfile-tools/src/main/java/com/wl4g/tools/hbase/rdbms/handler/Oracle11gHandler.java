@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.wl4g.dopaas.lcdp.tools.hbase.rdbms.handler;
+package com.wl4g.tools.hbase.rdbms.handler;
 
 import static org.apache.commons.lang3.StringUtils.isNumeric;
 
@@ -23,34 +23,18 @@ import java.util.Map;
 import com.wl4g.infra.common.cli.CommandLineTool.CommandLineFacade;
 
 /**
- * Mysql sql builder
+ * Oracle11g sql builder
  * 
  * @author Wangl.sir &lt;wanglsir@gmail.com, 983708408@qq.com&gt;
  * @version 2020年5月17日 v1.0.0
  * @see
  */
-public class PostgreSQLHandler extends RdbmsHandler {
+public class Oracle11gHandler extends RdbmsHandler {
 
-    public PostgreSQLHandler(CommandLineFacade line) {
+    public Oracle11gHandler(CommandLineFacade line) {
         super(line);
     }
 
-    /**
-     * <pre>
-     * INSERT INTO `safecloud_tsdb`.`tb_ammeter` (
-     * `ROW`,
-     * `activePower`,
-     * `reactivePower`,
-     * `cid`,
-     * `bid`
-     * ) VALUES (
-     * '11111112,ELE_P,111,03,20191219000242674',
-     *  '3650.4238',
-     *  '792.91797',
-     *  NULL,
-     *  NULL);
-     * </pre>
-     */
     @Override
     public String buildInsertSQLs(Map<String, String> fields) {
         StringBuffer sql = new StringBuffer("INSERT INTO ");
@@ -89,7 +73,7 @@ public class PostgreSQLHandler extends RdbmsHandler {
 
     @Override
     public String getDriverClass() {
-        return "org.postgresql.ds.PGSimpleDataSource";
+        return "oracle.jdbc.driver.OracleDriver";
     }
 
 }

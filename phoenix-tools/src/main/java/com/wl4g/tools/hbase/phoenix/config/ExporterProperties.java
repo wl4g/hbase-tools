@@ -21,7 +21,7 @@ import lombok.Setter;
 import lombok.ToString;
 
 /**
- * {@link CleanerProperties}
+ * {@link ToolsProperties}
  * 
  * @author James Wong
  * @version 2022-10-22
@@ -31,5 +31,5 @@ import lombok.ToString;
 @Setter
 @ToString
 @NoArgsConstructor
-public class CleanerProperties {
+public class ExporterProperties {
 }

@@ -1,14 +1,14 @@
-# Phoenix tools for Cleaner
+# Phoenix tools for Exporter
 
 ## Quick start
 
-- Execution cleaner example:
+- Execution exporter example:
 
 ```bash
 java -jar phoenix-tools-master-bin.jar \
 --spring.datasource.url=jdbc:phoenix:localhost:2181 \
 --tools.workspaceDir=${HOME}/.phoenix-tools/ \
---tools.provider=SIMPLE_CLEANER \
+--tools.provider=SIMPLE_EXPORTER \
 --tools.writeSqlLogFileFlushOnBatch=1024 \
 --tools.writeSqlLogFlushOnMillis=500 \
 --tools.tableNamespace=safeclound \

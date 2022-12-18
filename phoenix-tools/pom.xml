@@ -122,16 +122,22 @@
             </build>
         </profile>
         <profile>
-            <id>phoenix4</id>
+            <!-- Aliyun-EMR-3.1.12(hbase-1.1-phoenix-4.10-guava-12.0.1) -->
+            <id>with:phoenix4.8-1.2</id>
             <activation>
                 <activeByDefault>true</activeByDefault>
             </activation>
             <properties>
-                <!-- <phoenix4-client.version>4.8.2-HBase-1.2</phoenix4-client.version> -->
-                <phoenix4-client.version>4.10.0-HBase-1.2</phoenix4-client.version>
+                <phoenix4-client.version>4.8.2-HBase-1.2</phoenix4-client.version>
+                <!-- <phoenix4-client.version>4.10.0-HBase-1.2</phoenix4-client.version>-->
                 <!-- <phoenix4-client.version>4.15.0-HBase-1.4</phoenix4-client.version> -->
             </properties>
             <dependencies>
+                <dependency>
+                    <groupId>com.google.guava</groupId>
+                    <artifactId>guava</artifactId>
+                    <version>12.0.1</version>
+                </dependency>
                 <dependency>
                     <groupId>org.apache.phoenix</groupId>
                     <artifactId>phoenix-client</artifactId>
@@ -152,11 +158,17 @@
             </dependencies>
         </profile>
         <profile>
-            <id>phoenix5</id>
+            <!-- CDH-6.3.1-hbase-2.1-phoenix-5.1.2-guava-11.0.2 -->
+            <id>with:phoenix5.1-2.1</id>
             <properties>
-                <phoenix5-client.version>hbase-2.2-5.1.2</phoenix5-client.version>
+                <phoenix5-client.version>5.1.2-HBase-2.1</phoenix5-client.version>
             </properties>
             <dependencies>
+                <dependency>
+                    <groupId>com.google.guava</groupId>
+                    <artifactId>guava</artifactId>
+                    <version>11.0.2</version>
+                </dependency>
                 <dependency>
                     <groupId>org.apache.phoenix</groupId>
                     <artifactId>phoenix-client</artifactId>

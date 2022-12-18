@@ -19,7 +19,7 @@ import com.wl4g.tools.hbase.phoenix.BaseToolRunner;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Abstract cleaner records handler.
+ * Abstract exporter handler.
  * 
  * @author James Wong
  * @version 2022-10-22
@@ -58,51 +58,35 @@ public abstract class PhoenixTableExporter extends BaseToolRunner {
 
     // Delete update to HBase table.
     @Override
-    protected void executeUpdateToHTable(Map<String, Object> exportRecord) {
-        final String exportRowKey = (String) exportRecord.get(config.getRowKey().getName());
-        final String exportSql = format("export from \"%s\".\"%s\" where \"%s\"='%s'", config.getTableNamespace(),
-                config.getTableName(), config.getRowKey().getName(), exportRowKey);
+    protected void executeUpdate(Map<String, Object> exportRecord) {
+        final StringBuilder upsertSql = new StringBuilder(
+                format("upsert into \"%s\".\"%s\" (", config.getTableNamespace(), config.getTableName()));
+        safeMap(exportRecord).forEach((columnName, value) -> {
+            upsertSql.append("\"");
+            upsertSql.append(columnName);
+            upsertSql.append("\",");
+        });
+        upsertSql.delete(upsertSql.length() - 1, upsertSql.length());
+        upsertSql.append(") values (");
+        safeMap(exportRecord).forEach((columnName, value) -> {
+            String symbol = "'";
+            if (nonNull(value) && value instanceof Number) {
+                symbol = "";
+            }
+            upsertSql.append(symbol);
+            upsertSql.append(value);
+            upsertSql.append(symbol);
+            upsertSql.append(",");
+        });
+        upsertSql.delete(upsertSql.length() - 1, upsertSql.length());
+        upsertSql.append(")");
 
-        log.info("Executing: {}", exportSql);
+        log.info("Exporting: {}", upsertSql);
         if (!config.isDryRun()) {
-            jdbcTemplate.execute(exportSql.toString());
-
             // Save redo SQL to log files.
-            writeRedoSqlLog(exportRecord, exportSql.toString());
-
-            // Save undo SQL to log files.
-            writeUndoSqlLog(exportRecord);
+            writeRedoSqlLog(exportRecord, upsertSql.toString());
         }
         completedOfAll.incrementAndGet();
-    }
-
-    @Override
-    protected void writeUndoSqlLog(Map<String, Object> record) {
-        String exportRowKey = (String) record.get(config.getRowKey().getName());
-        doWriteSqlLog(false, () -> exportRowKey, () -> {
-            StringBuilder undoSql = new StringBuilder(
-                    format("upsert into \"%s\".\"%s\" (", config.getTableNamespace(), config.getTableName()));
-            safeMap(record).forEach((columnName, value) -> {
-                undoSql.append("\"");
-                undoSql.append(columnName);
-                undoSql.append("\",");
-            });
-            undoSql.delete(undoSql.length() - 1, undoSql.length());
-            undoSql.append(") values (");
-            safeMap(record).forEach((columnName, value) -> {
-                String symbol = "'";
-                if (nonNull(value) && value instanceof Number) {
-                    symbol = "";
-                }
-                undoSql.append(symbol);
-                undoSql.append(value);
-                undoSql.append(symbol);
-                undoSql.append(",");
-            });
-            undoSql.delete(undoSql.length() - 1, undoSql.length());
-            undoSql.append(")");
-            return undoSql.toString();
-        });
     }
 
 }

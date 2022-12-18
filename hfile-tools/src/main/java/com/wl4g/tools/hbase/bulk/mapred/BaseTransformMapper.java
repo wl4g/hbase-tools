@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.wl4g.dopaas.lcdp.tools.hbase.bulk.mapred;
+package com.wl4g.tools.hbase.bulk.mapred;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -26,7 +26,7 @@ import org.apache.hadoop.hbase.mapreduce.TableMapper;
 import org.apache.hadoop.hbase.util.Bytes;
 
 import static com.wl4g.infra.common.lang.Assert2.notNullOf;
-import static com.wl4g.dopaas.lcdp.tools.hbase.util.HBaseTools.*;
+import static com.wl4g.tools.hbase.util.HBaseTools.*;
 
 import java.io.IOException;
 import java.util.Iterator;

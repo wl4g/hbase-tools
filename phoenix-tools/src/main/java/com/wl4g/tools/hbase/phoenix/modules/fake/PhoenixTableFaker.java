@@ -101,8 +101,8 @@ public abstract class PhoenixTableFaker extends BaseToolRunner {
 
     // Save to HBase table.
     @Override
-    protected void executeUpdateToHTable(Map<String, Object> newRecord) {
-        StringBuilder upsertSql = new StringBuilder(
+    protected void executeUpdate(Map<String, Object> newRecord) {
+        final StringBuilder upsertSql = new StringBuilder(
                 format("upsert into \"%s\".\"%s\" (", config.getTableNamespace(), config.getTableName()));
         safeMap(newRecord).forEach((columnName, value) -> {
             upsertSql.append("\"");

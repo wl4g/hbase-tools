@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.wl4g.dopaas.lcdp.tools.hbase.rdbms.handler;
+package com.wl4g.tools.hbase.rdbms.handler;
 
 import static com.wl4g.infra.common.lang.Assert2.notNull;
 import static java.util.Collections.unmodifiableMap;
@@ -27,9 +27,9 @@ import java.util.Map.Entry;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.ParseException;
 
-import com.wl4g.dopaas.lcdp.tools.hbase.rdbms.RdbmsRepository;
-import com.wl4g.dopaas.lcdp.tools.hbase.util.HBaseTools;
 import com.wl4g.infra.common.cli.CommandLineTool.CommandLineFacade;
+import com.wl4g.tools.hbase.rdbms.RdbmsRepository;
+import com.wl4g.tools.hbase.util.HBaseTools;
 
 /**
  * {@link RdbmsHandler}

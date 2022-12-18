@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.wl4g.dopaas.lcdp.tools.hbase.bulk;
+package com.wl4g.tools.hbase.bulk;
 
-import static com.wl4g.dopaas.lcdp.tools.hbase.util.HBaseTools.DEFAULT_MAP_LIMIT;
+import static com.wl4g.tools.hbase.util.HBaseTools.DEFAULT_MAP_LIMIT;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -28,9 +28,9 @@ import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.mapreduce.LoadIncrementalHFiles;
 
-import com.wl4g.dopaas.lcdp.tools.hbase.util.HBaseTools;
 import com.wl4g.infra.common.cli.CommandLineTool.Builder;
 import com.wl4g.infra.common.cli.CommandLineTool.CommandLineFacade;
+import com.wl4g.tools.hbase.util.HBaseTools;
 
 /**
  * HASE hfile bulk importer.
@@ -46,7 +46,7 @@ public class HfileBulkFromHdfsImporter {
      * 
      * <pre>
      *  yarn jar dopaas-lcdp-tools-hbase-migrator-2.0.0.jar \
-     *  com.wl4g.dopaas.lcdp.tools.hbase.bulk.HfileBulkFromHdfsImporter \
+     *  com.wl4g.tools.hbase.bulk.HfileBulkFromHdfsImporter \
      *  -z emr-header-1:2181 \
      *  -t safeclound.tb_elec_power \
      *  -p /dopaas/safeclound.tb_elec_power

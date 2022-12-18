@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.wl4g.dopaas.lcdp.tools.hbase.spark;
+package com.wl4g.tools.hbase.spark;
 
 import static com.google.common.base.Charsets.UTF_8;
-import static com.wl4g.dopaas.lcdp.tools.hbase.util.HBaseTools.DEFAULT_HBASE_MR_TMPDIR;
-import static com.wl4g.dopaas.lcdp.tools.hbase.util.HBaseTools.DEFAULT_OUTPUT_DIR;
-import static com.wl4g.dopaas.lcdp.tools.hbase.util.HBaseTools.DEFAULT_USER;
+import static com.wl4g.tools.hbase.util.HBaseTools.DEFAULT_HBASE_MR_TMPDIR;
+import static com.wl4g.tools.hbase.util.HBaseTools.DEFAULT_OUTPUT_DIR;
+import static com.wl4g.tools.hbase.util.HBaseTools.DEFAULT_USER;
 import static java.lang.String.format;
 import static java.util.Objects.nonNull;
 import static org.apache.commons.lang3.StringUtils.EMPTY;
@@ -47,11 +47,11 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
 
-import com.wl4g.dopaas.lcdp.tools.hbase.bulk.HfileBulkToHdfsExporter;
-import com.wl4g.dopaas.lcdp.tools.hbase.util.CsvUtil;
-import com.wl4g.dopaas.lcdp.tools.hbase.util.HBaseTools;
 import com.wl4g.infra.common.cli.CommandLineTool.Builder;
 import com.wl4g.infra.common.cli.CommandLineTool.CommandLineFacade;
+import com.wl4g.tools.hbase.bulk.HfileBulkToHdfsExporter;
+import com.wl4g.tools.hbase.util.CsvUtil;
+import com.wl4g.tools.hbase.util.HBaseTools;
 
 import scala.Tuple2;
 
@@ -78,8 +78,8 @@ public class SparkHBaseToHdfsExporter implements Serializable {
      *  --executor-cores 4 \
      *  --executor-memory 2g \
      *  --jars ossref://my-oss-bucket/sparklib/dopaas-lcdp-tools-hbase-migrator-2.0.0-jar-with-dependencies.jar \
-     *  --class com.wl4g.dopaas.lcdp.tools.hbase.spark.SparkHBaseToHdfsExporter ossref://my-oss-bucket/sparklib/dopaas-lcdp-tools-hbase-migrator-2.0.0.jar \
-     *  com.wl4g.dopaas.lcdp.tools.hbase.bulk.HBaseSparkToHdfsExporter \
+     *  --class com.wl4g.tools.hbase.spark.SparkHBaseToHdfsExporter ossref://my-oss-bucket/sparklib/dopaas-lcdp-tools-hbase-migrator-2.0.0.jar \
+     *  com.wl4g.tools.hbase.bulk.HBaseSparkToHdfsExporter \
      *  -s 11111112,ELE_R_P,134,01,20180919110850989 \
      *  -e 11111112,ELE_R_P,134,01,20180921124050540 \
      *  -z emr-header-1:2181 \

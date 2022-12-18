@@ -24,36 +24,36 @@ public class SimplePhoenixTableExporter extends PhoenixTableExporter {
 
     @Override
     protected RunnerProvider provider() {
-        return RunnerProvider.SIMPLE_CLEANER;
+        return RunnerProvider.SIMPLE_EXPORTER;
     }
 
     @Override
-    protected Runnable newProcessTask(String deleteStartRowKey, String deleteEndRowKey) {
-        return new ProcessTask(deleteStartRowKey, deleteEndRowKey);
+    protected Runnable newProcessTask(String exportStartRowKey, String exportEndRowKey) {
+        return new ProcessTask(exportStartRowKey, exportEndRowKey);
     }
 
     @AllArgsConstructor
     class ProcessTask implements Runnable {
-        private String deleteStartRowKey;
-        private String deleteEndRowKey;
+        private String exportStartRowKey;
+        private String exportEndRowKey;
         private final AtomicInteger completed = new AtomicInteger(0);
 
         @Override
         public void run() {
             try {
-                List<Map<String, Object>> deleteRecords = fetchRecords(deleteStartRowKey, deleteEndRowKey);
+                final List<Map<String, Object>> exportRecords = fetchRecords(exportStartRowKey, exportEndRowKey);
 
-                safeList(deleteRecords).parallelStream().forEach(deleteRecord -> {
+                safeList(exportRecords).parallelStream().forEach(exportRecord -> {
                     totalOfAll.incrementAndGet();
-                    executeUpdateToHTable(deleteRecord);
+                    executeUpdate(exportRecord);
                     completed.incrementAndGet();
                 });
 
-                log.info("Processed completed of {}/{}/{}/{}", completed.get(), deleteRecords.size(), completedOfAll.get(),
+                log.info("Processed completed of {}/{}/{}/{}", completed.get(), exportRecords.size(), completedOfAll.get(),
                         totalOfAll.get());
             } catch (Exception e2) {
-                log.error(format("Failed to process of deleteStartRowKey: %s, deleteEndRowKey: %s", deleteStartRowKey,
-                        deleteEndRowKey), e2);
+                log.error(format("Failed to process of exportStartRowKey: %s, exportEndRowKey: %s", exportStartRowKey,
+                        exportEndRowKey), e2);
                 if (!config.isErrorContinue()) {
                     throw new IllegalStateException(e2);
                 }

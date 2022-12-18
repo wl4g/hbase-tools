@@ -20,6 +20,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import com.wl4g.tools.hbase.phoenix.modules.cleanup.SimplePhoenixTableCleaner;
+import com.wl4g.tools.hbase.phoenix.modules.exports.SimplePhoenixTableExporter;
 import com.wl4g.tools.hbase.phoenix.modules.fake.MonotoneIncreasePhoenixTableFaker;
 import com.wl4g.tools.hbase.phoenix.modules.fake.SimplePhoenixTableFaker;
 
@@ -52,6 +53,11 @@ public class ToolsAutoConfiguration {
     @Bean
     public SimplePhoenixTableCleaner simplePhoenixTableCleaner() {
         return new SimplePhoenixTableCleaner();
+    }
+    
+    @Bean
+    public SimplePhoenixTableExporter simplePhoenixTableExporter() {
+        return new SimplePhoenixTableExporter();
     }
 
 }

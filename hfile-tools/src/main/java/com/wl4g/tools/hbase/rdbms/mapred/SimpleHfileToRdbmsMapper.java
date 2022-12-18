@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.wl4g.dopaas.lcdp.tools.hbase.rdbms.mapred;
+package com.wl4g.tools.hbase.rdbms.mapred;
 
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.client.Result;
@@ -21,11 +21,11 @@ import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.mapreduce.Counter;
 
-import com.wl4g.dopaas.lcdp.tools.hbase.bulk.mapred.BaseTransformMapper;
-import com.wl4g.dopaas.lcdp.tools.hbase.rdbms.SimpleHfileToRdbmsExporter;
-import com.wl4g.dopaas.lcdp.tools.hbase.util.HBaseTools;
+import com.wl4g.tools.hbase.bulk.mapred.BaseTransformMapper;
+import com.wl4g.tools.hbase.rdbms.SimpleHfileToRdbmsExporter;
+import com.wl4g.tools.hbase.util.HBaseTools;
 
-import static com.wl4g.dopaas.lcdp.tools.hbase.util.HBaseTools.*;
+import static com.wl4g.tools.hbase.util.HBaseTools.*;
 import static java.lang.String.format;
 
 import java.io.IOException;

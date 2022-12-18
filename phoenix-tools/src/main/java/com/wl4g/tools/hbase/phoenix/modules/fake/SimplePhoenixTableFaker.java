@@ -82,7 +82,7 @@ public class SimplePhoenixTableFaker extends PhoenixTableFaker {
                     }
                     return newRecord;
                 }).forEach(newRecord -> {
-                    executeUpdateToHTable(newRecord);
+                    executeUpdate(newRecord);
                     completed.incrementAndGet();
                 });
 

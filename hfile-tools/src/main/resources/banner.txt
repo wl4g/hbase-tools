@@ -6,10 +6,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+# See: http://www.network-science.de/ascii/#big#drpepper
 #
-# See: https://github.com/wl4g/xcloud-dopaas/tree/master/xcloud-dopaas-lcdp-tools/xcloud-dopaas-lcdp-tools-hbase-migrator
+# See: https://github.com/wl4g/hbase-tools/tree/master/hfile-tools/README.md
 #
- ___       ___            ___    ___           _       _ _  ___               
-| . \ ___ | . \ ___  ___ / __>  |_ _|___  ___ | | ___ | | || . > ___  ___ ___ 
-| | |/ . \|  _/<_> |<_> |\__ \   | |/ . \/ . \| |<_-< |   || . \<_> |<_-</ ._>
-|___/\___/|_|  <___|<___|<___/   |_|\___/\___/|_|/__/ |_|_||___/<___|/__/\___.
+ _ _  ___  _  _        ___           _     
+| | || __><_>| | ___  |_ _|___  ___ | | ___
+|   || _> | || |/ ._>  | |/ . \/ . \| |<_-<
+|_|_||_|  |_||_|\___.  |_|\___/\___/|_|/__/

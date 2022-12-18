@@ -13,15 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.wl4g.dopaas.lcdp.tools.hbase.rdbms;
+package com.wl4g.tools.hbase.rdbms;
 
-import static com.wl4g.dopaas.lcdp.tools.hbase.util.HBaseTools.DEFAULT_HBASE_MR_TMPDIR;
-import static com.wl4g.dopaas.lcdp.tools.hbase.util.HBaseTools.DEFAULT_OUTPUT_DIR;
-import static com.wl4g.dopaas.lcdp.tools.hbase.util.HBaseTools.DEFAULT_SCAN_BATCH_SIZE;
-import static com.wl4g.dopaas.lcdp.tools.hbase.util.HBaseTools.DEFUALT_COUNTER_GROUP;
-import static com.wl4g.dopaas.lcdp.tools.hbase.util.HBaseTools.DEFUALT_COUNTER_PROCESSED;
-import static com.wl4g.dopaas.lcdp.tools.hbase.util.HBaseTools.DEFUALT_COUNTER_TOTAL;
 import static com.wl4g.infra.common.lang.Assert2.state;
+import static com.wl4g.tools.hbase.util.HBaseTools.DEFAULT_HBASE_MR_TMPDIR;
+import static com.wl4g.tools.hbase.util.HBaseTools.DEFAULT_OUTPUT_DIR;
+import static com.wl4g.tools.hbase.util.HBaseTools.DEFAULT_SCAN_BATCH_SIZE;
+import static com.wl4g.tools.hbase.util.HBaseTools.DEFUALT_COUNTER_GROUP;
+import static com.wl4g.tools.hbase.util.HBaseTools.DEFUALT_COUNTER_PROCESSED;
+import static com.wl4g.tools.hbase.util.HBaseTools.DEFUALT_COUNTER_TOTAL;
 import static java.lang.String.format;
 import static java.lang.String.valueOf;
 import static org.apache.commons.lang3.StringUtils.EMPTY;
@@ -46,11 +46,11 @@ import org.apache.hadoop.hbase.mapreduce.TableMapper;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
-import com.wl4g.dopaas.lcdp.tools.hbase.rdbms.handler.RdbmsHandler;
-import com.wl4g.dopaas.lcdp.tools.hbase.rdbms.mapred.SimpleHfileToRdbmsMapper;
-import com.wl4g.dopaas.lcdp.tools.hbase.util.HBaseTools;
 import com.wl4g.infra.common.cli.CommandLineTool.Builder;
 import com.wl4g.infra.common.cli.CommandLineTool.CommandLineFacade;
+import com.wl4g.tools.hbase.rdbms.handler.RdbmsHandler;
+import com.wl4g.tools.hbase.rdbms.mapred.SimpleHfileToRdbmsMapper;
+import com.wl4g.tools.hbase.util.HBaseTools;
 
 /**
  * Simple HBase HFile to RDBMS exporter. </br>

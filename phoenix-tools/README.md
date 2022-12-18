@@ -2,6 +2,12 @@
 
 > A general Phoenix-HBase table data faker/cleaner operation tools.
 
+- [Faker docs](README_FAKER.ms)
+
+- [Cleaner docs](README_CLEANER.ms)
+
+- [Exporter docs](README_EXPORTER.ms)
+
 ## Quick start (example):
 
 ### Init data example:
@@ -67,6 +73,6 @@ mvn clean package -DskipTests -Pphoenix4 -Pbuild:springjar
 ```bash
 /usr/local/graalvm-ce-java8-21.0.0.2/bin/java -jar \
 -agentlib:native-image-agent=config-merge-dir=/tmp/configdir/ \
-phoenix-tools-1.0.0-bin.jar \
+phoenix-tools-master-bin.jar \
 --spring.datasource.url=jdbc:phoenix:localhost:2181 ...
 ```

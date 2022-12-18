@@ -45,7 +45,7 @@ public class SimplePhoenixTableCleaner extends PhoenixTableCleaner {
 
                 safeList(deleteRecords).parallelStream().forEach(deleteRecord -> {
                     totalOfAll.incrementAndGet();
-                    executeUpdateToHTable(deleteRecord);
+                    executeUpdate(deleteRecord);
                     completed.incrementAndGet();
                 });
 

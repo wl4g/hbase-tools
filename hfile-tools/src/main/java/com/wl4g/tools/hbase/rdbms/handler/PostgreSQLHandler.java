@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.wl4g.dopaas.lcdp.tools.hbase.rdbms.handler;
+package com.wl4g.tools.hbase.rdbms.handler;
 
 import static org.apache.commons.lang3.StringUtils.isNumeric;
 
@@ -29,9 +29,9 @@ import com.wl4g.infra.common.cli.CommandLineTool.CommandLineFacade;
  * @version 2020年5月17日 v1.0.0
  * @see
  */
-public class MySQL57Handler extends RdbmsHandler {
+public class PostgreSQLHandler extends RdbmsHandler {
 
-    public MySQL57Handler(CommandLineFacade line) {
+    public PostgreSQLHandler(CommandLineFacade line) {
         super(line);
     }
 
@@ -89,7 +89,7 @@ public class MySQL57Handler extends RdbmsHandler {
 
     @Override
     public String getDriverClass() {
-        return "com.mysql.jdbc.Driver";
+        return "org.postgresql.ds.PGSimpleDataSource";
     }
 
 }

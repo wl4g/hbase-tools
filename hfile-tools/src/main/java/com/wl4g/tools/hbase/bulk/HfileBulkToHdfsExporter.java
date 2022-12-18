@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.wl4g.dopaas.lcdp.tools.hbase.bulk;
+package com.wl4g.tools.hbase.bulk;
 
-import static com.wl4g.dopaas.lcdp.tools.hbase.util.HBaseTools.DEFAULT_HBASE_MR_TMPDIR;
-import static com.wl4g.dopaas.lcdp.tools.hbase.util.HBaseTools.DEFAULT_MAP_LIMIT;
-import static com.wl4g.dopaas.lcdp.tools.hbase.util.HBaseTools.DEFAULT_OUTPUT_DIR;
-import static com.wl4g.dopaas.lcdp.tools.hbase.util.HBaseTools.DEFAULT_SCAN_BATCH_SIZE;
-import static com.wl4g.dopaas.lcdp.tools.hbase.util.HBaseTools.DEFUALT_COUNTER_GROUP;
-import static com.wl4g.dopaas.lcdp.tools.hbase.util.HBaseTools.DEFUALT_COUNTER_PROCESSED;
-import static com.wl4g.dopaas.lcdp.tools.hbase.util.HBaseTools.DEFUALT_COUNTER_TOTAL;
 import static com.wl4g.infra.common.lang.Assert2.state;
+import static com.wl4g.tools.hbase.util.HBaseTools.DEFAULT_HBASE_MR_TMPDIR;
+import static com.wl4g.tools.hbase.util.HBaseTools.DEFAULT_MAP_LIMIT;
+import static com.wl4g.tools.hbase.util.HBaseTools.DEFAULT_OUTPUT_DIR;
+import static com.wl4g.tools.hbase.util.HBaseTools.DEFAULT_SCAN_BATCH_SIZE;
+import static com.wl4g.tools.hbase.util.HBaseTools.DEFUALT_COUNTER_GROUP;
+import static com.wl4g.tools.hbase.util.HBaseTools.DEFUALT_COUNTER_PROCESSED;
+import static com.wl4g.tools.hbase.util.HBaseTools.DEFUALT_COUNTER_TOTAL;
 import static java.lang.String.format;
 import static org.apache.commons.lang3.StringUtils.EMPTY;
 
@@ -48,10 +48,10 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
-import com.wl4g.dopaas.lcdp.tools.hbase.bulk.mapred.NoOpTransformMapper;
-import com.wl4g.dopaas.lcdp.tools.hbase.util.HBaseTools;
 import com.wl4g.infra.common.cli.CommandLineTool.Builder;
 import com.wl4g.infra.common.cli.CommandLineTool.CommandLineFacade;
+import com.wl4g.tools.hbase.bulk.mapred.NoOpTransformMapper;
+import com.wl4g.tools.hbase.util.HBaseTools;
 
 /**
  * HASE hfile bulk exporter.
@@ -69,7 +69,7 @@ public class HfileBulkToHdfsExporter {
      * 
      * <pre>
      *  yarn jar dopaas-lcdp-tools-hbase-migrator-2.0.0.jar \
-     *  com.wl4g.dopaas.lcdp.tools.hbase.bulk.HfileBulkToHdfsExporter \
+     *  com.wl4g.tools.hbase.bulk.HfileBulkToHdfsExporter \
      *  -s 11111112,ELE_R_P,134,01,20180919110850989 \
      *  -e 11111112,ELE_R_P,134,01,20180921124050540 \
      *  -z emr-header-1:2181 \

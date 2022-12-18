@@ -164,14 +164,16 @@ public abstract class BaseToolRunner implements InitializingBean, DisposableBean
         return safeList(jdbcTemplate.queryForList(queryRawSql));
     }
 
-    protected abstract void executeUpdateToHTable(Map<String, Object> record);
+    protected abstract void executeUpdate(Map<String, Object> record);
 
     protected void writeRedoSqlLog(Map<String, Object> record, String redoSql) {
         String newRowKey = (String) record.get(config.getRowKey().getName());
         doWriteSqlLog(true, () -> newRowKey, () -> redoSql);
     }
 
-    protected abstract void writeUndoSqlLog(Map<String, Object> record);
+    protected void writeUndoSqlLog(Map<String, Object> record) {
+        throw new UnsupportedOperationException();
+    }
 
     protected void doWriteSqlLog(boolean isRedoSqlLog, Callable<String> rowKeyCall, Callable<String> sqlCall) {
         String rowKey = null;

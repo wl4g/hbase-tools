@@ -5,7 +5,7 @@
 - Execution faker Example: (generate fake data based on characteristics such as historical sample values)
 
 ```bash
-java -jar phoenix-tools-1.0.0-bin.jar \
+java -jar phoenix-tools-master-bin.jar \
 --spring.datasource.url=jdbc:phoenix:localhost:2181 \
 --tools.workspaceDir=${HOME}/.phoenix-tools/ \
 --tools.provider=MONOTONE_INCREASE_FAKER \
@@ -35,10 +35,10 @@ java -jar phoenix-tools-1.0.0-bin.jar \
 
 ```bash
 # Filter the rowKey date that generated fake data records 
-java -jar phoenix-tools-1.0.0-bin.jar | grep upsert | awk -F ' ' '{print $15}' | awk -F "'" '{print $4}' | sed s/11111277,ELE_P,134,01,//g
+java -jar phoenix-tools-master-bin.jar | grep upsert | awk -F ' ' '{print $15}' | awk -F "'" '{print $4}' | sed s/11111277,ELE_P,134,01,//g
 
 # Filter processed statistics.
-java -jar phoenix-tools-1.0.0-bin.jar | grep Processed
+java -jar phoenix-tools-master-bin.jar | grep Processed
 ```
 
 ## Configuration

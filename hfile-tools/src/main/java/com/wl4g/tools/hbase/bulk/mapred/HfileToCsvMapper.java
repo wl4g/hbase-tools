@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.wl4g.dopaas.lcdp.tools.hbase.bulk.mapred;
+package com.wl4g.tools.hbase.bulk.mapred;
 
 import static com.wl4g.infra.common.collection.CollectionUtils2.safeArray;
 import static com.wl4g.infra.common.log.SmartLoggerFactory.getLogger;
-import static com.wl4g.dopaas.lcdp.tools.hbase.util.HBaseTools.DEFUALT_COUNTER_GROUP;
-import static com.wl4g.dopaas.lcdp.tools.hbase.util.HBaseTools.DEFUALT_COUNTER_PROCESSED;
-import static com.wl4g.dopaas.lcdp.tools.hbase.util.HBaseTools.DEFUALT_COUNTER_TOTAL;
+import static com.wl4g.tools.hbase.util.HBaseTools.DEFUALT_COUNTER_GROUP;
+import static com.wl4g.tools.hbase.util.HBaseTools.DEFUALT_COUNTER_PROCESSED;
+import static com.wl4g.tools.hbase.util.HBaseTools.DEFUALT_COUNTER_TOTAL;
 import static java.lang.String.format;
 
 import java.io.IOException;
@@ -36,8 +36,8 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Counter;
 
 import com.wl4g.infra.common.log.SmartLogger;
-import com.wl4g.dopaas.lcdp.tools.hbase.rdbms.SimpleHfileToRdbmsExporter;
-import com.wl4g.dopaas.lcdp.tools.hbase.util.CsvUtil;
+import com.wl4g.tools.hbase.rdbms.SimpleHfileToRdbmsExporter;
+import com.wl4g.tools.hbase.util.CsvUtil;
 
 /**
  * HBASE to RDBMS transform mapper.

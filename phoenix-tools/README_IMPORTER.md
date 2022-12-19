@@ -1,8 +1,8 @@
-# Phoenix tools for Exporter
+# Phoenix tools for Importer
 
 ## Quick start
 
-- Execution exporter example:
+- Execution importer example:
 
 ```bash
 java -jar phoenix-tools-master-bin.jar \

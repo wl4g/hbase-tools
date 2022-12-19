@@ -8,6 +8,8 @@
 
 - [Exporter docs](README_EXPORTER.ms)
 
+- [Importer docs](README_EXPORTER.ms)
+
 ## Quick start (example):
 
 ### Init data example:

@@ -69,6 +69,7 @@ public class ToolsProperties implements InitializingBean {
     private FakerProperties faker = new FakerProperties();
     private CleanerProperties cleaner = new CleanerProperties();
     private ExporterProperties exporter = new ExporterProperties();
+    private ImporterProperties importer = new ImporterProperties();
 
     @Override
     public void afterPropertiesSet() throws Exception {
@@ -88,7 +89,7 @@ public class ToolsProperties implements InitializingBean {
     }
 
     public static enum RunnerProvider {
-        MONOTONE_INCREASE_FAKER, SIMPLE_FAKER, SIMPLE_CLEANER, SIMPLE_EXPORTER;
+        MONOTONE_INCREASE_FAKER, SIMPLE_FAKER, SIMPLE_CLEANER, SIMPLE_EXPORTER, SIMPLE_IMPORTER;
     }
 
     public static final long STARTUP_TIME = currentTimeMillis();

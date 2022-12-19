@@ -23,6 +23,7 @@ import com.wl4g.tools.hbase.phoenix.modules.cleanup.SimplePhoenixTableCleaner;
 import com.wl4g.tools.hbase.phoenix.modules.exports.SimplePhoenixTableExporter;
 import com.wl4g.tools.hbase.phoenix.modules.fake.MonotoneIncreasePhoenixTableFaker;
 import com.wl4g.tools.hbase.phoenix.modules.fake.SimplePhoenixTableFaker;
+import com.wl4g.tools.hbase.phoenix.modules.imports.SimplePhoenixTableImporter;
 
 /**
  * {@link ToolsAutoConfiguration}
@@ -54,10 +55,15 @@ public class ToolsAutoConfiguration {
     public SimplePhoenixTableCleaner simplePhoenixTableCleaner() {
         return new SimplePhoenixTableCleaner();
     }
-    
+
     @Bean
     public SimplePhoenixTableExporter simplePhoenixTableExporter() {
         return new SimplePhoenixTableExporter();
+    }
+
+    @Bean
+    public SimplePhoenixTableImporter simplePhoenixTableImporter() {
+        return new SimplePhoenixTableImporter();
     }
 
 }

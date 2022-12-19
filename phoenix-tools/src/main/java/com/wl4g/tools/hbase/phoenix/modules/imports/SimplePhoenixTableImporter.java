@@ -53,7 +53,8 @@ public class SimplePhoenixTableImporter extends PhoenixTableImporter {
                                 log.info("Executing: {}", upsertSql);
                                 if (!config.isDryRun()) {
                                     jdbcTemplate.execute(upsertSql);
-                                    writeUndoSqlLog(null);
+                                    // TODO parse sql to ROW value
+                                    // writeUndoSqlLog(null);
                                 }
                                 completed.incrementAndGet();
                             } catch (Exception e2) {
